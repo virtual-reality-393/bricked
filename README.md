@@ -1,0 +1,2 @@
+# bricked
+Lego AI Thing
