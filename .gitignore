@@ -393,3 +393,5 @@ runs/
 datasets/
 checkpoints/
 unprocessed_data/
+processed_data/
+needs_annotation/

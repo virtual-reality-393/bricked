@@ -3,10 +3,10 @@ from brick import *
 import glob
 import matplotlib.pyplot as plt
 
-DATA_PATH = "data/"
+DATA_PATH = "processed_data/"
 
-image_paths = sorted(glob.glob(DATA_PATH + "images/*.jpg"))
-labels = sorted(glob.glob(DATA_PATH + "labels/*.txt"))
+image_paths = sorted(glob.glob(DATA_PATH + "*.jpg"))
+labels = sorted(glob.glob(DATA_PATH + "*.txt"))
 
 
 

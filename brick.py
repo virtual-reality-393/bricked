@@ -37,5 +37,5 @@ def draw_box(image, xywh):
     y2 = y+h
 
     cv2.rectangle(
-        image, pt1=(int(x1), int(y1)), pt2=(int(x2), int(y2)), color=random_color(),thickness=10
+        image, pt1=(int(x1), int(y1)), pt2=(int(x2), int(y2)), color=random_color(),thickness=5
     )
