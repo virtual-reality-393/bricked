@@ -35,7 +35,7 @@ def onclick(event):
     
 DATA_PATH = "needs_annotation/"
 
-image_paths = glob.glob(DATA_PATH + "*.npy")
+image_paths = sorted(glob.glob(DATA_PATH + "*.npz"))
 
 
 for idx,img_path in enumerate(image_paths):
@@ -44,7 +44,7 @@ for idx,img_path in enumerate(image_paths):
     wm = plt.get_current_fig_manager()
     wm.window.state('zoomed')
 
-    data = np.load(img_path,allow_pickle=True).item()
+    data = list(np.load(img_path,allow_pickle=True).items())[0][1].item()
 
 
     image = data["segment_img"]
@@ -70,17 +70,18 @@ for idx,img_path in enumerate(image_paths):
     for x,y,w,h in bboxes:
         labels_string += f"0 {x/image.shape[1]} {y/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
 
-    labels_string = labels_string.rstrip("\n")
+    if len(bboxes) > 0:
+        labels_string = labels_string.rstrip("\n")
     
-    rnd = random.random()
-    split = "train" if rnd > 0.2 else "val"
+        rnd = random.random()
+        split = "train" if rnd > 0.2 else "val"
 
 
-    plt.imsave(f"processed_data/{file_name}.jpg",org_img)
+        plt.imsave(f"processed_data/{file_name}.jpg",org_img)
 
-    with open(f"processed_data/{file_name}.txt","w") as text_file:
-        text_file.write(labels_string)
-    
+        with open(f"processed_data/{file_name}.txt","w") as text_file:
+            text_file.write(labels_string)
+        
     
 
 

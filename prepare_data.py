@@ -46,7 +46,7 @@ def show_anns(anns, file_name,img, borders=True):
             cv2.drawContours(segment_image, contours, -1, (0, 0, 1, 0.4), thickness=1)
 
     data = {"org_img": img,"segment_img" : segment_image, "mask" : segment_mask}
-    np.save(file_name,data)
+    np.savez_compressed(file_name,data)
     
 mask_generator = SAM2AutomaticMaskGenerator(sam2)
 
@@ -61,7 +61,7 @@ for i,img_path in enumerate(image_paths):
     image_label = []
 
 
-    scale_factor = int(math.floor(min(image.shape[:2]) / 512.0))
+    scale_factor = max(int(math.floor(min(image.shape[:2]) / 512.0)),1)
     image_shape = (int(image.shape[1]/scale_factor), int(image.shape[0]/scale_factor))
     image = cv2.resize(image, image_shape)
 
