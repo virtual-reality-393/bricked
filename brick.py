@@ -3,10 +3,10 @@ import numpy as np
 from ultralytics import YOLO
 import ultralytics.engine.results
 import random
-
-yolo_model = YOLO("yolo11s.pt", verbose=False)
-
 import matplotlib.pyplot as plt
+
+yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\runs\detect\train5\weights\best.pt", verbose=False)
+
 
 
 
@@ -23,9 +23,16 @@ def load_image(path: str) -> np.ndarray:
     return image
 
 
-def detect(image: np.ndarray, conf: float = 0.4) -> ultralytics.engine.results.Results:
-    results = yolo_model(image)[0]
-    return results
+def detect(image: np.ndarray, conf: float = 0.1):
+    results = yolo_model.track(image,stream=True,persist=True)
+    result_data = []
+    for result in results:
+        bboxes = []
+        for box in result.boxes:
+            if box.conf > conf:
+                bboxes.append(box)
+    
+    return bboxes
 
 
 def draw_box(image, xywh):
@@ -39,3 +46,13 @@ def draw_box(image, xywh):
     cv2.rectangle(
         image, pt1=(int(x1), int(y1)), pt2=(int(x2), int(y2)), color=random_color(),thickness=5
     )
+
+def write_file(fn,content):
+    with open(fn,"w") as text_file:
+        text_file.write(content)
+
+def read_file(fn):
+    contents = ""
+    with open(fn,"r") as text_file:
+        contents = text_file.readlines()
+    return contents
