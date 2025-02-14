@@ -16,18 +16,19 @@ import shutil
 from collections import namedtuple
 
 def __onkeypress__(event):
-    global save,idx
+    global save,idx, save_override
     if event.key == "left":
         idx = max(idx-1,0)
         plt.close()
     if event.key == "right":
         idx = min(idx+1,len(image_paths))
         plt.close()
-    if event.key == "r":
-        save = False
-        plt.close()
     if event.key == " ":
         idx = min(idx+1,len(image_paths))
+        plt.close()
+    if event.key == "s":
+        save_override = True
+        idx = max(idx+1,len(image_paths))
         plt.close()
 
     if event.key == "q":
@@ -47,7 +48,7 @@ def __pre_annotate__(image,factor):
 
 
 def __onclick__(event): 
-    global idx, figure_bboxes
+    global curr_idx, figure_bboxes
 
     image_label.append(1 if event.button == 1 else 0)
     image_points.append((int(event.xdata),int(event.ydata)))
@@ -71,7 +72,7 @@ def __onclick__(event):
         x,y,w,h = rect
         # rectangle = plt.Rectangle((i,j),10,10, linewidth=4, color=(1,0,0,0.4), fill=True) # Debug
         # rect_patch = ax.add_patch(rectangle)
-        if rect not in figure_bboxes[idx]:
+        if rect not in figure_bboxes[curr_idx]:
             rectangle = plt.Rectangle((x,y),w,h, linewidth=4, color=(1,0,0,0.4), fill=True)
             
 
@@ -79,13 +80,13 @@ def __onclick__(event):
             rect_patch = ax.add_patch(rectangle)
 
 
-            figure_bboxes[idx][rect] = (rect_patch,rectangle)
+            figure_bboxes[curr_idx][rect] = (rect_patch,rectangle)
 
     if event.button == 3:
     
-        if rect in figure_bboxes[idx]:
-            figure_bboxes[idx][rect][0].remove()
-            figure_bboxes[idx].pop(rect)
+        if rect in figure_bboxes[curr_idx]:
+            figure_bboxes[curr_idx][rect][0].remove()
+            figure_bboxes[curr_idx].pop(rect)
         
 
    
@@ -94,6 +95,10 @@ def __onclick__(event):
 def process_video(in_path : str = "unprocessed_data/", out_path : str = "unprocessed_data/"):
 
     vid_paths = glob.glob(in_path + "*.mp4")
+
+    if len(vid_paths) ==  0:
+        print("No videos to process")
+        return
     
     img_idx = 0
     for vid_path in vid_paths:
@@ -110,7 +115,14 @@ def process_video(in_path : str = "unprocessed_data/", out_path : str = "unproce
                 saved_frame_name += 1
             else:
                 break
+        print(f"Saved {img_idx} images from {vid_path}")
+        video_capture.release()
+        os.rename(vid_path, in_path + "raw_finished/" + Path(vid_path).name)
+    
 
+    print(f"Saved {img_idx} images in total")
+    
+    
 
 def __generate_visual_segmentation__(anns, file_name,img,org,scalefactor, borders=True):
     if len(anns) == 0:
@@ -141,8 +153,8 @@ def __generate_visual_segmentation__(anns, file_name,img,org,scalefactor, border
     np.savez_compressed(file_name,data)
     
 
-def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_data/"):
-    global image_points, image_label, mask, idx, save, image_paths,figure_bboxes
+def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_data/",start_index : int = -1):
+    global image_points, image_label, mask, curr_idx,idx, save, image_paths,figure_bboxes, save_override
     if not Path.exists(Path(in_path)):
         raise IOError(f"in_path doesn't exist: {in_path}")
     if not Path.exists(Path(out_path)):
@@ -152,9 +164,19 @@ def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_da
     idx = 0
     save = True
     figure_bboxes = {}
+    save_override = False
+
+    if start_index == -1:
+        start_index = int(read_file("annotate_point.txt")[0])
+
+
+    if len(image_paths) <= start_index:
+        print("No images to annotate")
+        return
+    
     while idx < len(image_paths):
-        curr_idx = idx
-        
+        curr_idx = idx + start_index
+
             
         img_path = image_paths[curr_idx]
         
@@ -166,7 +188,8 @@ def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_da
         org_img = data["org_img"]
         mask = data["mask"]
         factor = data["factor"]
-        image[mask == 0] = (0,0,0,1)
+        image[mask == 0] *= 0.3
+        image[mask == 0][3] = 1 
         image_points = []
         image_label = []
 
@@ -203,20 +226,22 @@ def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_da
         for x,y,w,h in figure_bboxes[curr_idx]:
             labels_string += f"0 {x/image.shape[1]} {y/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
 
-        # if len(figure_bboxes[curr_idx]) > 0:
-        #     if save:
-        #         labels_string = labels_string.rstrip("\n")
+        if len(figure_bboxes[curr_idx]) > 0 or save_override:
+            if save:
+                labels_string = labels_string.rstrip("\n")
         
-        #         plt.imsave(f"processed_data/{file_name}.jpg",org_img)
+                plt.imsave(f"processed_data/{file_name}.jpg",org_img)
 
-        #         with open(f"processed_data/{file_name}.txt","w") as text_file:
-        #             text_file.write(labels_string)
-        # save = True
-
+                with open(f"processed_data/{file_name}.txt","w") as text_file:
+                    text_file.write(labels_string)
+                save_override = False
+        save = True
+    
+    start_index = write_file("annotate_point.txt",str(curr_idx))
 
 
 def process_raw_images(in_path : str = "unprocessed_data/", out_path : str = "needs_annotation/"):
-    MODEL = "sam2.1_hiera_s"
+    MODEL = "sam2.1_hiera_base_plus"
 
     if not Path.exists(Path(in_path)):
         raise IOError(f"in_path doesn't exist: {in_path}")
@@ -234,6 +259,8 @@ def process_raw_images(in_path : str = "unprocessed_data/", out_path : str = "ne
 
     mask_generator = SAM2AutomaticMaskGenerator(sam2)
 
+    curr_highest = max([int(Path(path).name.split(".")[0]) for path in glob.glob(out_path+"*.npz")]) + 1
+
     for i,img_path in enumerate(image_paths):
 
         print(f"Processing Image {img_path}")
@@ -246,11 +273,13 @@ def process_raw_images(in_path : str = "unprocessed_data/", out_path : str = "ne
 
         masks = mask_generator.generate(scaled_image)
 
-        file_name = str(i)
+        file_name = str(i + curr_highest)
 
         file_name = file_name.zfill(7)
 
         __generate_visual_segmentation__(masks,out_path + file_name,scaled_image,image,scale_factor)
+
+        os.remove(img_path)
 
 def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/brick/", splits : list = [("train",0.8),("val",0.2)]):
     random.seed(424354)
@@ -296,7 +325,11 @@ def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/
 
         
 if __name__ == "__main__":
+    process_video()
+    process_raw_images()
     annotate()
+    create_splits()
+
 
 
 

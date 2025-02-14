@@ -5,7 +5,7 @@ import ultralytics.engine.results
 import random
 import matplotlib.pyplot as plt
 
-yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\runs\detect\train12\weights\best.pt", verbose=False)
+yolo_model = None
 
 
 
@@ -24,6 +24,9 @@ def load_image(path: str) -> np.ndarray:
 
 
 def detect(image: np.ndarray, conf: float = 0.3, is_video = False):
+    global yolo_model
+    if yolo_model == None:
+        yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\runs\detect\train15\weights\best.pt", verbose=True)
     results = yolo_model.track(image,stream=is_video,persist=is_video)
     bboxes = []
     try:
@@ -35,6 +38,35 @@ def detect(image: np.ndarray, conf: float = 0.3, is_video = False):
         return bboxes
     except:
         return bboxes
+    
+def annotate_image(image,bboxes,class_names = ["brick"], colors = [(1,0,0),(0,1,0),(0,0,1)]):
+    for box in bboxes:
+        # check if confidence is greater than 40 percent
+        if box.conf[0] > 0.4:
+            # get coordinates
+            [x,y,w,h] = box.xywh[0]
+
+            x1 = x
+            x2 = x + w
+            y1 = y
+            y2 = y + h
+            # convert to int
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
+            # get the class
+            cls = int(box.cls[0])
+
+            # get the class name
+            class_name = class_names[cls]
+
+            # get the respective color
+            color = colors[cls]
+
+            # draw the rectangle
+            cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+
+            # put the class name and confidence on the image
+            cv2.putText(image, f'{class_names[int(box.cls[0])]} {box.conf[0]:.2f}', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
 def draw_box(image, xywh):
     x,y,w,h = xywh

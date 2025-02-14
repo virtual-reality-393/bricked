@@ -1,8 +1,6 @@
 import cv2
 import numpy as np
-import cv2
 from mss import mss
-import cv2
 import PIL.Image as pil
 from PIL import Image
 from torchvision import datasets, transforms
@@ -44,7 +42,6 @@ with mss() as sct:
         frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
 
         bboxes = detect(frame,is_video=True)
-
 
         for box in bboxes:
             # check if confidence is greater than 40 percent
