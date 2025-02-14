@@ -5,7 +5,7 @@ import ultralytics.engine.results
 import random
 import matplotlib.pyplot as plt
 
-yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\runs\detect\train5\weights\best.pt", verbose=False)
+yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\runs\detect\train12\weights\best.pt", verbose=False)
 
 
 
@@ -23,17 +23,18 @@ def load_image(path: str) -> np.ndarray:
     return image
 
 
-def detect(image: np.ndarray, conf: float = 0.1):
-    results = yolo_model.track(image,stream=True,persist=True)
-    result_data = []
-    for result in results:
-        bboxes = []
-        for box in result.boxes:
-            if box.conf > conf:
-                bboxes.append(box)
-    
-    return bboxes
-
+def detect(image: np.ndarray, conf: float = 0.3, is_video = False):
+    results = yolo_model.track(image,stream=is_video,persist=is_video)
+    bboxes = []
+    try:
+        for result in results:
+            for box in result.boxes:
+                if box.conf > conf:
+                    bboxes.append(box)
+        
+        return bboxes
+    except:
+        return bboxes
 
 def draw_box(image, xywh):
     x,y,w,h = xywh

@@ -32,16 +32,18 @@ def getColours(cls_num):
 with mss() as sct:
     while True:
 
-        # window = gw.getWindowsWithTitle("CPH2493")[0]
-        monitor = sct.monitors[2]
-        # x1, y1, x2, y2 = window.left, window.top, window.left + window.width, window.top + window.height
+        
+        # monitor = sct.monitors[2]
+        window = gw.getWindowsWithTitle("Pixel 6 Pro")[0]
+        monitor = window.left, window.top, window.left + window.width, window.top + window.height
+        
         sct_img = sct.grab(monitor)
 
         frame = np.array(sct_img)
 
         frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
 
-        bboxes = detect(frame)
+        bboxes = detect(frame,is_video=True)
 
 
         for box in bboxes:

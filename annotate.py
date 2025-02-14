@@ -5,19 +5,15 @@ import matplotlib.pyplot as plt
 import random
 import os
 from pathlib import Path
-
 from sam2.build_sam import build_sam2
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
-from brick import *
 import glob
 import math
 import matplotlib.pyplot as plt
 import cv2
-import torch
 from pathlib import Path
 import shutil
-
-
+from collections import namedtuple
 
 def __onkeypress__(event):
     global save,idx
@@ -37,9 +33,17 @@ def __onkeypress__(event):
     if event.key == "q":
         exit()
 
-def __pre_annotate__(image):    
-    yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\runs\detect\train5\weights\best.pt", verbose=False)
-    pass
+def __pre_annotate__(image,factor):
+    bboxes = detect(image,conf = 0.4)
+    Event = namedtuple("Event",["button","xdata","ydata"])
+    for box in bboxes:
+        [x,y,w,h] = box.xywh[0]
+        event = Event(1,(x+w//2)//factor,(y+h//2)//factor)
+        __onclick__(event)
+
+
+
+    
 
 
 def __onclick__(event): 
@@ -51,7 +55,13 @@ def __onclick__(event):
     i = int(event.xdata)
     j = int(event.ydata)
 
+    i = min(mask.shape[1]-1,i)
+    j = min(mask.shape[0]-1,j)
+
     val = int(mask[j,i])
+
+    if val == 0:
+        return
 
     num,_,flood_mask,rect = cv2.floodFill(mask,np.zeros((mask.shape[0]+2,mask.shape[1]+2),np.uint8),seedPoint=(i,j),newVal=val)
 
@@ -59,9 +69,12 @@ def __onclick__(event):
     
     if event.button == 1:        
         x,y,w,h = rect
-
+        # rectangle = plt.Rectangle((i,j),10,10, linewidth=4, color=(1,0,0,0.4), fill=True) # Debug
+        # rect_patch = ax.add_patch(rectangle)
         if rect not in figure_bboxes[idx]:
             rectangle = plt.Rectangle((x,y),w,h, linewidth=4, color=(1,0,0,0.4), fill=True)
+            
+
 
             rect_patch = ax.add_patch(rectangle)
 
@@ -78,8 +91,28 @@ def __onclick__(event):
    
     fig.canvas.draw()
 
+def process_video(in_path : str = "unprocessed_data/", out_path : str = "unprocessed_data/"):
 
-def __generate_visual_segmentation__(anns, file_name,img, borders=True):
+    vid_paths = glob.glob(in_path + "*.mp4")
+    
+    img_idx = 0
+    for vid_path in vid_paths:
+        print(f"Processing {vid_path}")
+        video_capture = cv2.VideoCapture(vid_path)
+        saved_frame_name = 0
+        while video_capture.isOpened():
+            frame_is_read, frame = video_capture.read()
+
+            if frame_is_read:
+                if saved_frame_name % 30 == 0:
+                    cv2.imwrite(f"{out_path}{str(img_idx)}.jpg", frame)
+                    img_idx+=1
+                saved_frame_name += 1
+            else:
+                break
+
+
+def __generate_visual_segmentation__(anns, file_name,img,org,scalefactor, borders=True):
     if len(anns) == 0:
         return
     
@@ -96,7 +129,7 @@ def __generate_visual_segmentation__(anns, file_name,img, borders=True):
         m = ann['segmentation']
 
         segment_mask[m] = i
-        color_mask = np.concatenate([np.random.random(3), [1]])
+        color_mask = np.concatenate([np.array([0,0.5,0.5]), [1]])
         segment_image[m] = segment_image[m]*0.5 + color_mask*0.5
         if borders:
             contours, _ = cv2.findContours(m.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE) 
@@ -104,7 +137,7 @@ def __generate_visual_segmentation__(anns, file_name,img, borders=True):
             contours = [cv2.approxPolyDP(contour, epsilon=0.01, closed=True) for contour in contours]
             cv2.drawContours(segment_image, contours, -1, (0, 0, 1, 0.4), thickness=1)
 
-    data = {"org_img": img,"segment_img" : segment_image, "mask" : segment_mask}
+    data = {"org_img": org,"segment_img" : segment_image, "mask" : segment_mask,"factor":scalefactor}
     np.savez_compressed(file_name,data)
     
 
@@ -121,12 +154,10 @@ def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_da
     figure_bboxes = {}
     while idx < len(image_paths):
         curr_idx = idx
-        if curr_idx not in figure_bboxes:
-            figure_bboxes[curr_idx] = {}
+        
             
         img_path = image_paths[curr_idx]
-        wm = plt.get_current_fig_manager()
-        wm.window.state('zoomed')
+        
 
         data = list(np.load(img_path,allow_pickle=True).items())[0][1].item()
 
@@ -134,17 +165,30 @@ def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_da
         image = data["segment_img"]
         org_img = data["org_img"]
         mask = data["mask"]
-
-        image[mask == 0] = 0
+        factor = data["factor"]
+        image[mask == 0] = (0,0,0,1)
         image_points = []
         image_label = []
+
+        
 
         ax = plt.imshow(image)
         plt.axis('off')
         fig = ax.get_figure()
+
+        fig.set_size_inches(15,15)
+
+        fig.canvas.manager.window.wm_geometry("+%d+%d" % (0, -100))
+
+        if curr_idx not in figure_bboxes:
+            figure_bboxes[curr_idx] = {}
+            __pre_annotate__(org_img,factor)
+
         for rect in figure_bboxes[curr_idx]:
             figure_bboxes[curr_idx][rect][0].remove()
             fig.get_axes()[0].add_patch(figure_bboxes[curr_idx][rect][1])
+
+        
 
         cid = fig.canvas.mpl_connect('button_press_event', __onclick__) 
         cid = fig.canvas.mpl_connect('key_press_event', __onkeypress__) 
@@ -159,20 +203,19 @@ def annotate(in_path : str = "needs_annotation/", out_path : str = "processed_da
         for x,y,w,h in figure_bboxes[curr_idx]:
             labels_string += f"0 {x/image.shape[1]} {y/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
 
-        if len(figure_bboxes[curr_idx]) > 0:
-            if save:
-                labels_string = labels_string.rstrip("\n")
+        # if len(figure_bboxes[curr_idx]) > 0:
+        #     if save:
+        #         labels_string = labels_string.rstrip("\n")
         
-                plt.imsave(f"processed_data/{file_name}.jpg",org_img)
+        #         plt.imsave(f"processed_data/{file_name}.jpg",org_img)
 
-                with open(f"processed_data/{file_name}.txt","w") as text_file:
-                    text_file.write(labels_string)
-        save = True
+        #         with open(f"processed_data/{file_name}.txt","w") as text_file:
+        #             text_file.write(labels_string)
+        # save = True
 
 
 
 def process_raw_images(in_path : str = "unprocessed_data/", out_path : str = "needs_annotation/"):
-
     MODEL = "sam2.1_hiera_s"
 
     if not Path.exists(Path(in_path)):
@@ -199,15 +242,15 @@ def process_raw_images(in_path : str = "unprocessed_data/", out_path : str = "ne
 
         scale_factor = max(int(math.floor(min(image.shape[:2]) / 512.0)),1)
         image_shape = (int(image.shape[1]/scale_factor), int(image.shape[0]/scale_factor))
-        image = cv2.resize(image, image_shape)
+        scaled_image = cv2.resize(image, image_shape)
 
-        masks = mask_generator.generate(image)
+        masks = mask_generator.generate(scaled_image)
 
         file_name = str(i)
 
         file_name = file_name.zfill(7)
 
-        __generate_visual_segmentation__(masks,out_path + file_name,image)
+        __generate_visual_segmentation__(masks,out_path + file_name,scaled_image,image,scale_factor)
 
 def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/brick/", splits : list = [("train",0.8),("val",0.2)]):
     random.seed(424354)
@@ -244,8 +287,8 @@ def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/
                 split_count[name] += 1
                 os.makedirs(os.path.dirname(f"{out_path}images/{name}/{img_path.name}"), exist_ok=True)
                 shutil.copy(img_path,f"{out_path}images/{name}/{img_path.name}")
-                os.makedirs(os.path.dirname(f"{out_path}images/{name}/{label_path.name}"), exist_ok=True)
-                shutil.copy(label_path,f"{out_path}images/{name}/{label_path.name}")
+                os.makedirs(os.path.dirname(f"{out_path}labels/{name}/{label_path.name}"), exist_ok=True)
+                shutil.copy(label_path,f"{out_path}labels/{name}/{label_path.name}")
                 break
 
     print(split_count)
@@ -254,6 +297,7 @@ def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/
         
 if __name__ == "__main__":
     annotate()
+
 
 
 
