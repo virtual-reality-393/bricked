@@ -1,13 +1,7 @@
-from brick import * 
-from pathlib import Path
-import glob
-
-
+from brick import *
 
 def predict_video(video_path : str):
     video = cv2.VideoCapture(filename=video_path)
-
-
 
     while video.isOpened():
         frame_is_read, frame = video.read()
@@ -29,5 +23,5 @@ def predict_video(video_path : str):
         else:
             break
 
-
-predict_video(r"C:\Users\VirtualReality\Desktop\bricked\unprocessed_data\20250213_100610_eb269118.mp4")
+vid_name = "20250217_093937_9cd144da"
+predict_video(rf"C:\Users\VirtualReality\Desktop\bricked\unprocessed_data\raw_finished\{vid_name}.mp4")
