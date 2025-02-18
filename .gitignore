@@ -388,6 +388,14 @@ android/pytorch_android_torchvision/.cxx
 *.pth
 
 
+# Data Files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.mp4
+
+
 # Ultralytics
 runs/
 datasets/
