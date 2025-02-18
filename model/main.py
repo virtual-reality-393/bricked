@@ -1,4 +1,3 @@
-import torch
 from brick import *
 import glob
 import matplotlib.pyplot as plt
@@ -7,8 +6,6 @@ DATA_PATH = "processed_data/"
 
 image_paths = sorted(glob.glob(DATA_PATH + "*.jpg"))
 labels = sorted(glob.glob(DATA_PATH + "*.txt"))
-
-
 
 for i in range(len(image_paths)):
     image = load_image(image_paths[i])
@@ -23,6 +20,3 @@ for i in range(len(image_paths)):
 
     plt.imshow(image)
     plt.show()
-
-
-

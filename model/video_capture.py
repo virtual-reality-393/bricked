@@ -33,6 +33,7 @@ with mss() as sct:
         
         # monitor = sct.monitors[2]
         window = gw.getWindowsWithTitle("Pixel 6 Pro")[0]
+        # monitor = window.left+25, window.top+100, window.left + window.width-25, window.top + window.height-75
         monitor = window.left, window.top, window.left + window.width, window.top + window.height
         
         sct_img = sct.grab(monitor)

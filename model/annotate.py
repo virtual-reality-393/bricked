@@ -26,9 +26,9 @@ def __onkeypress__(event):
     if event.key == " ":
         idx = min(idx+1,len(image_paths))
         plt.close()
-    if event.key == "s":
+    if event.key == "up":
         save_override = True
-        idx = max(idx+1,len(image_paths))
+        idx = min(idx+1,len(image_paths))
         plt.close()
 
     if event.key == "q":
