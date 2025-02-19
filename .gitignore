@@ -386,6 +386,8 @@ android/pytorch_android_torchvision/.cxx
 # Models
 *.pt
 *.pth
+model/models/
+*.onnx
 
 
 # Data Files

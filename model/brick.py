@@ -7,9 +7,6 @@ import matplotlib.pyplot as plt
 
 yolo_model = None
 
-
-
-
 def random_color():
     return np.random.randint(0, 255, (3), dtype=np.uint8).tolist()
 
