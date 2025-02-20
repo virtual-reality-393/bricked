@@ -9,9 +9,8 @@ import cv2
 import os
 import glob
 from pathlib import Path
-import webcolors
 import numpy as np
-from brick import *
+from model.brick import *
 
 def get_color_name(h,s,v):
     h = h*2

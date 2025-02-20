@@ -23,7 +23,7 @@ def load_image(path: str) -> np.ndarray:
 def detect(image: np.ndarray, conf: float = 0.3, is_video = False):
     global yolo_model
     if yolo_model == None:
-        yolo_model = YOLO(r"C:\Users\ReHyb\Desktop\bricked\runs\run15.pt", verbose=True)
+        yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train18\weights\best.pt", verbose=True)
     results = yolo_model.track(image,stream=is_video,persist=is_video)
     bboxes = []
     try:

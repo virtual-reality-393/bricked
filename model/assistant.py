@@ -26,8 +26,8 @@ class VoiceAssistant:
         self.tts_engine = PiperEngine(voice = self.tts_voice,debug=True)
         print("TTS Stream")
         self.tts_stream = TextToAudioStream(engine = self.tts_engine,output_device_index=out_audio,language=language)
-        print("STT Recorder")
-        self.stt_recorder = AudioToTextRecorder(language=language,input_device_index=in_audio)
+        # print("STT Recorder")
+        # self.stt_recorder = AudioToTextRecorder(language=language,input_device_index=in_audio)
 
 
 
