@@ -32,7 +32,12 @@ class Annotator:
         self.seg_model = seg_model
         self.__mask_generator__ = None
 
+        self.rects = {}
+
         self.curr_image = {}
+
+        self.bbox_active = False
+        self.select_bbox = []
 
     def __get_mask_generator__(self):
         if self.__seg_model__ == None:
@@ -46,10 +51,105 @@ class Annotator:
 
         return self.__seg_model__
     
-    def __draw_circle__(event,x,y,flags,param):
-        if event == cv2.EVENT_LBUTTONDBLCLK:
-            cv2.circle(img,(x,y),100,(255,0,0),-1)
-            mouseX,mouseY = x,y
+    def __on_click__(self,event,x,y,flags,params):
+        if event == cv2.EVENT_LBUTTONDOWN or event == cv2.EVENT_RBUTTONDOWN:
+            i = int(x)
+            j = int(y)
+
+            mask = self.curr_image["mask"]
+
+            i = min(mask.shape[1]-1,i)
+            j = min(mask.shape[0]-1,j)
+
+            val = int(mask[j,i])
+
+            if val == 0:
+                return
+
+            num,_,flood_mask,rect = cv2.floodFill(mask,np.zeros((mask.shape[0]+2,mask.shape[1]+2),np.uint8),seedPoint=(i,j),newVal=val)
+
+            if self.curr_idx not in self.rects:
+                self.rects[self.curr_idx] = []
+
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if rect not in self.rects[self.curr_idx]:
+                    self.rects[self.curr_idx].append(rect)
+
+            if event == cv2.EVENT_RBUTTONDOWN:
+                if rect in self.rects[self.curr_idx]:
+                    self.rects[self.curr_idx].remove(rect)
+
+            if params[0]:
+                self.__update_image__()
+
+
+
+
+
+        if event == cv2.EVENT_MBUTTONDOWN:
+            self.bbox_active = True
+            self.bbox_start = (x,y)
+            print("Started dragging")
+
+        if event == cv2.EVENT_MBUTTONUP:
+            self.bbox_active = False
+            print("Stopped dragging")
+
+            (x2,y2) = self.bbox_start
+
+            min_x = min(x,x2)
+            max_x = max(x,x2)
+
+            min_y = min(y,y2)
+            max_y = max(y,y2)
+
+            x2,y2 = self.bbox_start
+
+            self.rects[self.curr_idx].append([min_x,min_y,max_x-min_x,max_y-min_y])
+
+        if self.bbox_active:
+            self.select_bbox = [self.bbox_start,(x,y)]
+
+    def __update_image__(self):
+        overlay = np.zeros(self.curr_image["segment_img"].shape)
+        for (x,y,w,h) in self.rects[self.curr_idx]:
+            cv2.rectangle(overlay,(x,y),(x+w,y+h),(1,0,0,1),-1)
+
+        if self.bbox_active:
+            (x1,y1),(x2,y2) = self.select_bbox
+
+            min_x = min(x1,x2)
+            max_x = max(x1,x2)
+
+            min_y = min(y1,y2)
+            max_y = max(y1,y2)
+            cv2.rectangle(overlay,(min_x,min_y),(max_x,max_y),(1,0,1,1),2)
+
+        overlay = cv2.addWeighted(overlay,0.5,overlay,0,0)
+
+        for (x,y,w,h) in self.rects[self.curr_idx]:
+            cv2.rectangle(overlay,(x,y),(x+w,y+h),(1,0,0,1),2)
+
+        if self.bbox_active:
+            (x1,y1),(x2,y2) = self.select_bbox
+
+            min_x = min(x1,x2)
+            max_x = max(x1,x2)
+
+            min_y = min(y1,y2)
+            max_y = max(y1,y2)
+            cv2.rectangle(overlay,(min_x,min_y),(max_x,max_y),(1,0,1,1),2)
+
+        self.curr_image["display_img"] = cv2.addWeighted(self.curr_image["segment_img"],1,overlay,0.4,0)
+            
+
+
+    def __pre_annotate__(self):
+        bboxes = detect(self.curr_image["org_img"],conf = 0.4)
+        for box in bboxes:
+            [x,y,w,h] = box.xywh[0]
+            self.__on_click__(1,int((x+w/2)/self.curr_image["factor"]),int((y+h/2)/self.curr_image["factor"]),None,[False])
+            
     
     def process_video(self):
         vid_paths = glob.glob(self.unproc + "*.mp4")
@@ -113,48 +213,67 @@ class Annotator:
     def annotate(self):
         image_paths = sorted(glob.glob(self.need_anno + "*.npz"))
         idx = 0
-        self.figure_bboxes = {}
+        save = True
+        save_override = False
+
+        cv2.namedWindow("image_display")
+        cv2.setMouseCallback('image_display', self.__on_click__,[True])
         
         while idx < len(image_paths):
-            img_path = image_paths[idx]
+
+            self.curr_idx = idx
+
+            img_path = image_paths[self.curr_idx]
 
             data = list(np.load(img_path,allow_pickle=True).items())[0][1].item()
             
             image = data["segment_img"]
             org_img = data["org_img"]
             mask = data["mask"]
-            factor = data["factor"]
+
+            image[mask == 0] *= 0.3
+            image[mask == 0][3] = 1 
 
             self.curr_image = data
 
-            image[mask == 0] *= 0.3
-            image[mask == 0][3] = 1            
+            self.curr_image["display_img"] = image.copy()
 
-            cv2.imshow("image_display", data["segment_img"])
-            cv2.waitKey(0)
+            if self.curr_idx not in self.rects:
+                self.__pre_annotate__()
 
-            if curr_idx not in figure_bboxes:
-                figure_bboxes[curr_idx] = {}
-                __pre_annotate__(org_img,factor)
 
-            for rect in figure_bboxes[curr_idx]:
-                figure_bboxes[curr_idx][rect][0].remove()
-                fig.get_axes()[0].add_patch(figure_bboxes[curr_idx][rect][1])
+            while True:
+                cv2.imshow("image_display", cv2.cvtColor((data["display_img"]*255).astype(np.uint8),cv2.COLOR_RGB2BGR))
+                self.__update_image__()
+                key_press = cv2.waitKey(1) & 0xff
 
-            
+                if key_press == ord("q"):
+                    exit()
 
-            cid = fig.canvas.mpl_connect('button_press_event', __onclick__) 
-            cid = fig.canvas.mpl_connect('key_press_event', __onkeypress__) 
-            file_name = str(curr_idx)
+                if key_press == ord("r"):
+                    self.rects[self.curr_idx].pop()
+
+                if key_press == ord("a"):
+                    idx = max(idx-1,0)
+                    break
+
+                if key_press == ord("d"):
+                    idx += 1
+                    break
+
+
+        
+
+            file_name = str(self.curr_idx)
 
             file_name = file_name.zfill(7)
 
             labels_string = ""
 
-            for x,y,w,h in figure_bboxes[curr_idx]:
+            for x,y,w,h in self.rects[self.curr_idx]:
                 labels_string += f"0 {x/image.shape[1]} {y/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
 
-            if len(figure_bboxes[curr_idx]) > 0 or save_override:
+            if len(self.rects[self.curr_idx]) > 0 or save_override:
                 if save:
                     labels_string = labels_string.rstrip("\n")
             
@@ -164,9 +283,7 @@ class Annotator:
                         text_file.write(labels_string)
                     save_override = False
             save = True
-        
-        start_index = write_file("annotate_point.txt",str(curr_idx))
-
+    
 
 
 
@@ -191,13 +308,7 @@ def __onkeypress__(event):
     if event.key == "q":
         exit()
 
-def __pre_annotate__(image,factor):
-    bboxes = detect(image,conf = 0.4)
-    Event = namedtuple("Event",["button","xdata","ydata"])
-    for box in bboxes:
-        [x,y,w,h] = box.xywh[0]
-        event = Event(1,(x+w//2)//factor,(y+h//2)//factor)
-        __onclick__(event)
+
 
 
 
