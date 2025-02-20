@@ -37,7 +37,7 @@ def get_color_name(h,s,v):
 
 
 def find_brick_by_color(image, color_name, is_video=False):
-    bboxes = detect(image, conf=0.2,is_video=is_video)
+    bboxes = detect(image, conf=0.4,is_video=is_video)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     for box in bboxes:
         [x, y, w, h] = box.xywh[0]
@@ -59,6 +59,30 @@ def find_brick_by_color(image, color_name, is_video=False):
             return (x1, y1, x2, y2)
             
     return None
+
+def find_brik_and_color(image, is_video=False):
+    bboxes = detect(image, conf=0.4,is_video=is_video)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    res = []
+    for box in bboxes:
+        [x, y, w, h] = box.xywh[0]
+        x1, y1, x2, y2 = int(x), int(y), int(x + w), int(y + h)
+        
+        w10 = int(w * 0.3)
+        h10 = int(h * 0.3)
+        x1_new = x1 + int(w * 0.35)
+        y1_new = y1 + int(h * 0.35)
+        x2_new = x1_new + w10
+        y2_new = y1_new + h10
+
+        # get average hsv value of the bounding box
+        hsv = cv2.cvtColor(image[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_RGB2HSV)
+        hsv = np.median(hsv,axis=(0,1))
+        h,s,v = hsv
+        detected_color_name = get_color_name(h,s,v)
+        res.append((detected_color_name,(x1, y1, x2, y2)))
+            
+    return res
 
 def hsv_to_rgb(h, s, v):
     hsv = np.uint8([[[h, s, v]]])
