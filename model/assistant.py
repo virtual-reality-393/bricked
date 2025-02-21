@@ -5,7 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, TextStre
 class VoiceAssistant:
 
     def __init__(self, language : str = "en", voice : str = "models/joe", in_audio : int = 11, out_audio : int = 13):
-        self.message_history = [{"role": "system","content": "You are a personal voice assistant controlled via a pair of smart glasses. You are also very moody most of the time. Please keep your messages concise"}]
+        self.message_history = [{"role": "system","content": "You are a personal voice assistant controlled via a pair of smart glasses. Please keep your messages concise"}]
         print("LLM")
         # self.llm_model = AutoModelForCausalLM.from_pretrained(
         #     "jpacifico/Chocolatine-3B-Instruct-DPO-Revised",

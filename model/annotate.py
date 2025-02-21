@@ -14,6 +14,7 @@ import cv2
 from pathlib import Path
 import shutil
 from collections import namedtuple
+from tqdm import tqdm
 
 
 class Annotator:
@@ -30,9 +31,11 @@ class Annotator:
         self.unproc = unproc
         self.need_anno = need_anno
         self.seg_model = seg_model
+
         self.__mask_generator__ = None
 
         self.rects = {}
+        self.extra_anno = {}
 
         self.curr_image = {}
 
@@ -40,7 +43,7 @@ class Annotator:
         self.select_bbox = []
 
     def __get_mask_generator__(self):
-        if self.__seg_model__ == None:
+        if self.__mask_generator__ == None:
             checkpoint = f"./models/{self.seg_model}.pt"
             model_cfg = f"configs/sam2.1/{self.seg_model}.yaml"
             
@@ -49,7 +52,7 @@ class Annotator:
             mask_generator = SAM2AutomaticMaskGenerator(sam2)
             self.__mask_generator__ = mask_generator
 
-        return self.__seg_model__
+        return self.__mask_generator__
     
     def __on_click__(self,event,x,y,flags,params):
         if event == cv2.EVENT_LBUTTONDOWN or event == cv2.EVENT_RBUTTONDOWN:
@@ -81,10 +84,11 @@ class Annotator:
 
             if params[0]:
                 self.__update_image__()
+            else:
+                if self.curr_idx not in self.extra_anno:
+                    self.extra_anno[self.curr_idx] = []
 
-
-
-
+                self.extra_anno[self.curr_idx].append((x,y))
 
         if event == cv2.EVENT_MBUTTONDOWN:
             self.bbox_active = True
@@ -112,6 +116,7 @@ class Annotator:
 
     def __update_image__(self):
         overlay = np.zeros(self.curr_image["segment_img"].shape)
+
         for (x,y,w,h) in self.rects[self.curr_idx]:
             cv2.rectangle(overlay,(x,y),(x+w,y+h),(1,0,0,1),-1)
 
@@ -125,7 +130,7 @@ class Annotator:
             max_y = max(y1,y2)
             cv2.rectangle(overlay,(min_x,min_y),(max_x,max_y),(1,0,1,1),2)
 
-        overlay = cv2.addWeighted(overlay,0.5,overlay,0,0)
+        overlay = cv2.addWeighted(overlay,0.7,overlay,0,0)
 
         for (x,y,w,h) in self.rects[self.curr_idx]:
             cv2.rectangle(overlay,(x,y),(x+w,y+h),(1,0,0,1),2)
@@ -140,7 +145,14 @@ class Annotator:
             max_y = max(y1,y2)
             cv2.rectangle(overlay,(min_x,min_y),(max_x,max_y),(1,0,1,1),2)
 
-        self.curr_image["display_img"] = cv2.addWeighted(self.curr_image["segment_img"],1,overlay,0.4,0)
+        self.curr_image["display_img"] = cv2.addWeighted(self.curr_image["segment_img"],1,overlay,0.5,0)
+
+        if self.curr_idx in self.extra_anno:
+            for (x,y) in self.extra_anno[self.curr_idx]:
+                cv2.circle(self.curr_image["display_img"],(x,y),5,(1,0,1,1),-1)
+
+
+        cv2.putText(self.curr_image["display_img"],str(self.curr_idx) + "/" + str(len(self.image_paths)),(0,50),cv2.FONT_HERSHEY_SIMPLEX,2,(1,0,0),2,cv2.LINE_AA)
             
 
 
@@ -149,6 +161,39 @@ class Annotator:
         for box in bboxes:
             [x,y,w,h] = box.xywh[0]
             self.__on_click__(1,int((x+w/2)/self.curr_image["factor"]),int((y+h/2)/self.curr_image["factor"]),None,[False])
+
+
+
+    
+    def __generate_visual_segmentation__(self,anns, file_name,img,org,scalefactor, borders=True):
+        if len(anns) == 0:
+            return
+        
+        image = cv2.cvtColor(img, cv2.COLOR_RGB2RGBA)
+
+        image = image.astype("float64")/255
+        sorted_anns = sorted(anns, key=(lambda x: x['area']), reverse=True)
+        ax = plt.gca()
+        ax.set_autoscale_on(False)
+
+        segment_image = image
+        segment_mask = np.zeros((sorted_anns[0]['segmentation'].shape[0], sorted_anns[0]['segmentation'].shape[1]),dtype=np.uint8)
+        for i,ann in enumerate(sorted_anns):
+            m = ann['segmentation']
+
+            segment_mask[m] = i
+            color_mask = np.concatenate([np.array([0,0.5,0.5]), [1]])
+            segment_image[m] = segment_image[m]*0.5 + color_mask*0.5
+            if borders:
+                contours, _ = cv2.findContours(m.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE) 
+                # Try to smooth contours
+                contours = [cv2.approxPolyDP(contour, epsilon=0.01, closed=True) for contour in contours]
+                cv2.drawContours(segment_image, contours, -1, (0, 0, 1, 0.4), thickness=1)
+
+        data = {"org_img": org,"segment_img" : segment_image, "mask" : segment_mask,"factor":scalefactor}
+        np.savez_compressed(file_name,data)
+        
+
             
     
     def process_video(self):
@@ -189,13 +234,15 @@ class Annotator:
         mask_generator = self.__get_mask_generator__()
         curr_highest = max([int(Path(path).name.split(".")[0]) for path in glob.glob(self.need_anno+"*.npz")]) + 1
 
-        for i,img_path in enumerate(image_paths):
+        for i,img_path in enumerate(tqdm(image_paths)):
 
-            print(f"Processing Image {img_path}")
 
             image = load_image(img_path)
 
-            scale_factor = max(int(math.floor(min(image.shape[:2]) / 512.0)),1)
+            scale_factor = max((min(image.shape[:2]) / 1024.0),1)
+            if scale_factor != 1.515625:
+                print(img_path)
+                print(scale_factor)
             image_shape = (int(image.shape[1]/scale_factor), int(image.shape[0]/scale_factor))
             scaled_image = cv2.resize(image, image_shape)
 
@@ -205,25 +252,30 @@ class Annotator:
 
             file_name = file_name.zfill(7)
 
-            __generate_visual_segmentation__(masks,self.need_anno + file_name,scaled_image,image,scale_factor)
+            self.__generate_visual_segmentation__(masks,self.need_anno + file_name,scaled_image,image,scale_factor)
 
             os.remove(img_path)
     
 
     def annotate(self):
-        image_paths = sorted(glob.glob(self.need_anno + "*.npz"))
+        self.image_paths = sorted(glob.glob(self.need_anno + "*.npz"))
         idx = 0
         save = True
         save_override = False
 
         cv2.namedWindow("image_display")
         cv2.setMouseCallback('image_display', self.__on_click__,[True])
+
+        start_idx = int(read_file("annotate_point.txt")[0])
+
+        self.curr_idx = start_idx
+
         
-        while idx < len(image_paths):
+        while self.curr_idx < len(self.image_paths):
 
-            self.curr_idx = idx
+            self.curr_idx = idx + start_idx
 
-            img_path = image_paths[self.curr_idx]
+            img_path = self.image_paths[self.curr_idx]
 
             data = list(np.load(img_path,allow_pickle=True).items())[0][1].item()
             
@@ -239,6 +291,7 @@ class Annotator:
             self.curr_image["display_img"] = image.copy()
 
             if self.curr_idx not in self.rects:
+                self.rects[self.curr_idx] = []
                 self.__pre_annotate__()
 
 
@@ -283,6 +336,8 @@ class Annotator:
                         text_file.write(labels_string)
                     save_override = False
             save = True
+
+            write_file("annotate_point.txt",str(self.curr_idx+1))
     
 
 
@@ -363,35 +418,6 @@ def __onclick__(event):
 
     
 
-def __generate_visual_segmentation__(anns, file_name,img,org,scalefactor, borders=True):
-    if len(anns) == 0:
-        return
-    
-    image = cv2.cvtColor(img, cv2.COLOR_RGB2RGBA)
-
-    image = image.astype("float64")/255
-    sorted_anns = sorted(anns, key=(lambda x: x['area']), reverse=True)
-    ax = plt.gca()
-    ax.set_autoscale_on(False)
-
-    segment_image = image
-    segment_mask = np.zeros((sorted_anns[0]['segmentation'].shape[0], sorted_anns[0]['segmentation'].shape[1]),dtype=np.uint8)
-    for i,ann in enumerate(sorted_anns):
-        m = ann['segmentation']
-
-        segment_mask[m] = i
-        color_mask = np.concatenate([np.array([0,0.5,0.5]), [1]])
-        segment_image[m] = segment_image[m]*0.5 + color_mask*0.5
-        if borders:
-            contours, _ = cv2.findContours(m.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE) 
-            # Try to smooth contours
-            contours = [cv2.approxPolyDP(contour, epsilon=0.01, closed=True) for contour in contours]
-            cv2.drawContours(segment_image, contours, -1, (0, 0, 1, 0.4), thickness=1)
-
-    data = {"org_img": org,"segment_img" : segment_image, "mask" : segment_mask,"factor":scalefactor}
-    np.savez_compressed(file_name,data)
-    
-
 
 
 
@@ -443,8 +469,12 @@ def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/
 if __name__ == "__main__":
     anno = Annotator()
 
-    anno.annotate()
+    # anno.process_video()
+    # anno.process_raw_images()
 
+    # anno.annotate()
+
+    create_splits()
 
 
 

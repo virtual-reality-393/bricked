@@ -59,7 +59,7 @@ def find_brick_by_color(image, color_name, is_video=False):
             
     return None
 
-def find_brik_and_color(image, is_video=False):
+def find_brick_and_color(image, is_video=False):
     bboxes = detect(image, conf=0.4,is_video=is_video)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     res = []
