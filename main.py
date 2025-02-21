@@ -18,6 +18,7 @@ if __name__ == "__main__":
     name_to_color = {"red": (0, 0, 255), "green": (0, 255, 0), "blue": (255, 0, 0), "yellow": (0, 255, 255)}
     
     text = ""
+    previos_text = ""
     with mss() as sct:
         while True:
             # monitor = sct.monitors[2]
@@ -105,7 +106,9 @@ if __name__ == "__main__":
             cv2.putText(frame, f'Target: {target}', (10, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
             cv2.putText(frame, f'Brik to move: {brik_to_move}', (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
 
-
+            if text != previos_text:
+                #assistant.play_message(text)
+                previos_text = text
 
             '''Displays hvilken klodser der er i frame'''
             # y_offset = 30
