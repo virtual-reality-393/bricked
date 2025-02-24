@@ -4,13 +4,15 @@ from mss import mss
 from model.brick import *
 from util import *
 import pygetwindow as gw
-from model.assistant import VoiceAssistant
+#from model.assistant import VoiceAssistant
 
 
 if __name__ == "__main__":
-    cv2.namedWindow("frame")
-    cv2.moveWindow("frame",0,0)
-    assistant = VoiceAssistant(voice = "model/models/joe")
+    use_voice = False
+    if use_voice:
+        #assistant = VoiceAssistant(voice = "model/models/joe")
+        pass
+
     brick_centers = {}
     target = None
     brick_to_move = None
@@ -106,14 +108,14 @@ if __name__ == "__main__":
                     cv2.line(frame, brick_centers[brick_to_move], brick_centers[target], lineColor, 2)
 
             cv2.putText(frame, text, (120, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.9, lineColor, 2)
-            cv2.putText(frame, f'Num bricks {num_bricks}', (10, 170), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
-            cv2.putText(frame, f'Target: {target}', (10, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
-            cv2.putText(frame, f'brick to move: {brick_to_move}', (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+            # cv2.putText(frame, f'Num bricks {num_bricks}', (10, 170), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+            # cv2.putText(frame, f'Target: {target}', (10, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+            # cv2.putText(frame, f'brick to move: {brick_to_move}', (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
 
-            # if text != previos_text:
-            #     assistant.play_message(text)
 
-            
+            if text != previos_text and use_voice:
+                #assistant.play_message(text)
+                pass
             previos_text = text
 
             '''Displays hvilken klodser der er i frame'''
