@@ -26,15 +26,16 @@ def getColours(cls_num):
     ]
     return tuple(color)
 
-
+cv2.namedWindow("frame")
+cv2.moveWindow("frame",0,0)
 with mss() as sct:
     while True:
 
         
         # monitor = sct.monitors[2]
         window = gw.getWindowsWithTitle("Pixel 6 Pro")[0]
-        # monitor = window.left+25, window.top+100, window.left + window.width-25, window.top + window.height-75
-        monitor = window.left, window.top, window.left + window.width, window.top + window.height
+        monitor = window.left+25, window.top+100, window.left + window.width-25, window.top + window.height-75
+        # monitor = window.left, window.top, window.left + window.width, window.top + window.height
         
         sct_img = sct.grab(monitor)
 
@@ -42,7 +43,7 @@ with mss() as sct:
 
         frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
 
-        bboxes = detect(frame,is_video=True)
+        bboxes = detect(frame,is_video=True,conf=0.2)
 
         for box in bboxes:
             # check if confidence is greater than 40 percent
@@ -50,10 +51,10 @@ with mss() as sct:
                 # get coordinates
                 [x,y,w,h] = box.xywh[0]
 
-                x1 = x
-                x2 = x + w
-                y1 = y
-                y2 = y + h
+                x1 = x - w/2
+                x2 = x + w/2
+                y1 = y - h/2
+                y2 = y + h/2
                 # convert to int
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 

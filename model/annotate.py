@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 
 class Annotator:
-    def __init__(self, seg_model : str = "sam2.1_hiera_base_plus", anno_model = "run18.pt",unproc = "unprocessed_data/", need_anno = "needs_annotation/", proc = "processed_data/"):
+    def __init__(self, seg_model : str = "sam2.1_hiera_base_plus", anno_model = "run22.pt",unproc = "unprocessed_data/", need_anno = "needs_annotation/", proc = "processed_data/"):
         if not Path.exists(Path(unproc)):
             raise IOError(f"Path to unprocessed data doesn't exist: {unproc}")
 
@@ -232,7 +232,7 @@ class Annotator:
     def process_raw_images(self):
         image_paths = glob.glob(self.unproc + "*.jpg")
         mask_generator = self.__get_mask_generator__()
-        curr_highest = max([int(Path(path).name.split(".")[0]) for path in glob.glob(self.need_anno+"*.npz")]) + 1
+        curr_highest = 0 if len(image_paths) > 0 else max([int(Path(path).name.split(".")[0]) for path in glob.glob(self.need_anno+"*.npz")]) + 1 
 
         for i,img_path in enumerate(tqdm(image_paths)):
 
@@ -243,6 +243,7 @@ class Annotator:
             if scale_factor != 1.515625:
                 print(img_path)
                 print(scale_factor)
+                continue
             image_shape = (int(image.shape[1]/scale_factor), int(image.shape[0]/scale_factor))
             scaled_image = cv2.resize(image, image_shape)
 
@@ -314,6 +315,9 @@ class Annotator:
                     idx += 1
                     break
 
+                if key_press != 255:
+                    print(chr(key_press))
+
 
         
 
@@ -341,88 +345,6 @@ class Annotator:
     
 
 
-
-
-
-def __onkeypress__(event):
-    global save,idx, save_override
-    if event.key == "left":
-        idx = max(idx-1,0)
-        plt.close()
-    if event.key == "right":
-        idx = min(idx+1,len(image_paths))
-        plt.close()
-    if event.key == " ":
-        idx = min(idx+1,len(image_paths))
-        plt.close()
-    if event.key == "up":
-        save_override = True
-        idx = min(idx+1,len(image_paths))
-        plt.close()
-
-    if event.key == "q":
-        exit()
-
-
-
-
-
-    
-
-
-def __onclick__(event): 
-    global curr_idx, figure_bboxes
-
-    image_label.append(1 if event.button == 1 else 0)
-    image_points.append((int(event.xdata),int(event.ydata)))
-    fig = plt.gcf()
-    i = int(event.xdata)
-    j = int(event.ydata)
-
-    i = min(mask.shape[1]-1,i)
-    j = min(mask.shape[0]-1,j)
-
-    val = int(mask[j,i])
-
-    if val == 0:
-        return
-
-    num,_,flood_mask,rect = cv2.floodFill(mask,np.zeros((mask.shape[0]+2,mask.shape[1]+2),np.uint8),seedPoint=(i,j),newVal=val)
-
-    ax = fig.get_axes()[0]
-    
-    if event.button == 1:        
-        x,y,w,h = rect
-        # rectangle = plt.Rectangle((i,j),10,10, linewidth=4, color=(1,0,0,0.4), fill=True) # Debug
-        # rect_patch = ax.add_patch(rectangle)
-        if rect not in figure_bboxes[curr_idx]:
-            rectangle = plt.Rectangle((x,y),w,h, linewidth=4, color=(1,0,0,0.4), fill=True)
-            
-
-
-            rect_patch = ax.add_patch(rectangle)
-
-
-            figure_bboxes[curr_idx][rect] = (rect_patch,rectangle)
-
-    if event.button == 3:
-    
-        if rect in figure_bboxes[curr_idx]:
-            figure_bboxes[curr_idx][rect][0].remove()
-            figure_bboxes[curr_idx].pop(rect)
-        
-
-   
-    fig.canvas.draw()
-
-
-    
-
-
-
-
-
-
 def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/brick/", splits : list = [("train",0.8),("val",0.2)]):
     random.seed(424354)
 
@@ -430,7 +352,7 @@ def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/
         raise IOError(f"in_path doesn't exist: {in_path}")
 
     if not Path.exists(Path(out_path)):
-        Path.mkdir(out_path)
+        Path.mkdir(Path(out_path))
         print(f"out_path doesn't exist: {out_path}, creating it instead")
     
 

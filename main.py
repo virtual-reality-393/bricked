@@ -8,6 +8,8 @@ from model.assistant import VoiceAssistant
 
 
 if __name__ == "__main__":
+    cv2.namedWindow("frame")
+    cv2.moveWindow("frame",0,0)
     assistant = VoiceAssistant(voice = "model/models/joe")
     brick_centers = {}
     target = None
@@ -23,8 +25,8 @@ if __name__ == "__main__":
         while True:
             # monitor = sct.monitors[2]
             window = gw.getWindowsWithTitle("Pixel 6 Pro")[0]
-            # monitor = window.left+25, window.top+100, window.left + window.width-25, window.top + window.height-75
-            monitor = window.left, window.top, window.left + window.width, window.top + window.height
+            monitor = window.left+25, window.top+100, window.left + window.width-25, window.top + window.height-75
+            # monitor = window.left, window.top, window.left + window.width, window.top + window.height
             
             sct_img = sct.grab(monitor)
 
@@ -108,8 +110,8 @@ if __name__ == "__main__":
             cv2.putText(frame, f'Target: {target}', (10, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
             cv2.putText(frame, f'brick to move: {brick_to_move}', (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
 
-            if text != previos_text:
-                assistant.play_message(text)
+            # if text != previos_text:
+            #     assistant.play_message(text)
 
             
             previos_text = text

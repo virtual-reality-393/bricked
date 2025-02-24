@@ -23,7 +23,7 @@ def load_image(path: str) -> np.ndarray:
 def detect(image: np.ndarray, conf: float = 0.3, is_video = False):
     global yolo_model
     if yolo_model == None:
-        yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train18\weights\best.pt", verbose=True)
+        yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train28\weights\best.pt", verbose=True)
     results = yolo_model.track(image,stream=is_video,persist=is_video)
     bboxes = []
     try:
@@ -43,10 +43,10 @@ def annotate_image(image,bboxes,class_names = ["brick"], colors = [(1,0,0),(0,1,
             # get coordinates
             [x,y,w,h] = box.xywh[0]
 
-            x1 = x
-            x2 = x + w
-            y1 = y
-            y2 = y + h
+            x1 = x-w/2
+            x2 = x+w/2
+            y1 = y - h/2
+            y2 = y + h/2
             # convert to int
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 

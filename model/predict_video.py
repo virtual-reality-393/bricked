@@ -6,7 +6,7 @@ def predict_video(video_path : str):
     while video.isOpened():
         frame_is_read, frame = video.read()
 
-        frame = cv2.resize(frame,(frame.shape[1]//2,frame.shape[0]//2))
+        frame = cv2.resize(frame,(frame.shape[1],frame.shape[0]))
 
 
         bboxes = detect(frame,is_video=True)
@@ -23,5 +23,5 @@ def predict_video(video_path : str):
         else:
             break
 
-vid_name = "20250217_093937_9cd144da"
-predict_video(rf"C:\Users\VirtualReality\Desktop\bricked\unprocessed_data\raw_finished\{vid_name}.mp4")
+vid_name = "20250224_094408_c6d9126d"
+predict_video(rf"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\raw_finished\{vid_name}.mp4")
