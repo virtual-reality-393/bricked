@@ -13,6 +13,7 @@ import numpy as np
 from model.brick import *
 
 def get_color_name(h,s,v):
+    h = int(h)
     h = h*2
 
     if v < 50:
@@ -65,7 +66,7 @@ def find_brick_and_color(image, is_video=False):
     res = []
     for box in bboxes:
         [x, y, w, h] = box.xywh[0]
-        x1, y1, x2, y2 = int(x), int(y), int(x + w), int(y + h)
+        x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
         
         w10 = int(w * 0.3)
         h10 = int(h * 0.3)
@@ -83,40 +84,45 @@ def find_brick_and_color(image, is_video=False):
             
     return res
 
+def color_of_pixel(image, x, y):
+
+    hsv = hsv[0][0]
+    h,s,v = hsv
+    return hsv,get_color_name(h,s,v)
+
 def hsv_to_rgb(h, s, v):
     hsv = np.uint8([[[h, s, v]]])
     rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)[0][0]
     return tuple(int(c) for c in rgb)
 
-def process_video(in_path : str = "bricked/exercise/Video/", out_path : str = "bricked/exercise/TestImages/"):
+def process_video():
 
-    vid_paths = glob.glob(in_path + "*.mp4")
+    vid_path = "bricked/exercise/video/test_video.mp4"
+    self = "bricked/exercise/TestImages/"
 
-    if len(vid_paths) ==  0:
-        print("No videos to process")
-        return
-    
     img_idx = 0
-    for vid_path in vid_paths:
-        print(f"Processing {vid_path}")
-        video_capture = cv2.VideoCapture(vid_path)
-        saved_frame_name = 0
-        while video_capture.isOpened():
-            frame_is_read, frame = video_capture.read()
 
-            if frame_is_read:
-                if saved_frame_name % 30 == 0:
-                    cv2.imwrite(f"{out_path}{str(img_idx)}.jpg", frame)
-                    img_idx+=1
-                saved_frame_name += 1
-            else:
-                break
-        print(f"Saved {img_idx} images from {vid_path}")
-        video_capture.release()
-        os.rename(vid_path, in_path + "raw_finished/" + Path(vid_path).name)
-    
+    frames_this_vid = 0
+    print(f"Processing {vid_path}")
+    video_capture = cv2.VideoCapture(vid_path)
+    saved_frame_name = 0
+    while video_capture.isOpened():
+        frame_is_read, frame = video_capture.read()
+
+        if frame_is_read:
+            if saved_frame_name % 60 == 0:
+                cv2.imwrite(f"{self}{str(img_idx)}.jpg", frame)
+                img_idx+=1
+                frames_this_vid+=1
+            saved_frame_name += 1
+        else:
+            break
+    print(f"Saved {frames_this_vid} images from {vid_path}")
+    video_capture.release()
+
 
     print(f"Saved {img_idx} images in total")
+
 
 if __name__ == "__main__":
     process_video()
