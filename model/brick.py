@@ -35,9 +35,9 @@ class BrickDetector:
         single_results = []
         multi_results = []
         if model_to_use == 0 or model_to_use == 2:
-            single_results = self.single_model.track(image,self.is_video)
+            single_results = self.single_model.track(image,stream = self.is_video, persist = self.is_video,verbose = False)
         if model_to_use == 1 or model_to_use == 2:
-            multi_results = self.multi_model.track(image,self.is_video)
+            multi_results = self.multi_model.track(image,stream = self.is_video, persist = self.is_video,verbose = False)
 
         single_bboxes = []
         multi_bboxes = []
