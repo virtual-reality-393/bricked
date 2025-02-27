@@ -1,10 +1,76 @@
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import ultralytics.engine.results
+from ultralytics.engine.results import Boxes
 import random
 import matplotlib.pyplot as plt
+import os
 
+
+
+class BrickDetector:
+    def __init__(self,single_model : str = "models/run32.pt", multi_model : str = "models/run35_stacked.pt", is_video : bool = True):
+        self.single_model = YOLO(single_model)
+        self.multi_model = YOLO(multi_model)
+        self.is_video = is_video
+        
+
+    
+    
+    def detect(self,image: np.ndarray, conf: float = 0.4, model_to_use = 2) -> list[Boxes] | tuple[list[Boxes],list[Boxes]]:
+        """
+
+        Args:
+            image (np.ndarray): The image to run the detection on
+            conf (float, optional): The minimum confidence of the bounding boxes. Defaults to 0.4.
+            model_to_use (int, optional): If set to 0, only the single brick model will be used.
+                                          If set to 1, only the multi brick model will be used.
+                                          If set to 2, both model will be used.
+                                    
+
+        Returns:
+            list[Boxes] | tuple[list[Boxes],list[Boxes]]:
+            The returning bounding boxes, only 1 list be returned if model_to_use is set to 0 or 1, else it will return 2 lists with the results
+        """
+        single_results = []
+        multi_results = []
+        if model_to_use == 0 or model_to_use == 2:
+            single_results = self.single_model.track(image,self.is_video)
+        if model_to_use == 1 or model_to_use == 2:
+            multi_results = self.multi_model.track(image,self.is_video)
+
+        single_bboxes = []
+        multi_bboxes = []
+
+        try:
+            for result in single_results:
+                for box in result.boxes:
+                    if box.conf > conf:
+                        single_bboxes.append(box)
+        except:
+            pass
+
+        try:
+            for result in multi_results:
+                for box in result.boxes:
+                    if box.conf > conf:
+                        multi_bboxes.append(box)
+        except:
+            pass
+
+        if model_to_use == 0:
+            return single_bboxes
+        if model_to_use == 1:
+            return multi_bboxes
+        if model_to_use == 2:
+            return single_bboxes, multi_bboxes
+            
+        
+        
+        
+        
+
+os.environ['YOLO_VERBOSE'] = 'False'
 yolo_model = None
 
 def random_color():
@@ -20,21 +86,6 @@ def load_image(path: str) -> np.ndarray:
     return image
 
 
-def detect(image: np.ndarray, conf: float = 0.3, is_video = False):
-    global yolo_model
-    if yolo_model == None:
-        yolo_model = YOLO(r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train28\weights\best.pt", verbose=True)
-    results = yolo_model.track(image,stream=is_video,persist=is_video)
-    bboxes = []
-    try:
-        for result in results:
-            for box in result.boxes:
-                if box.conf > conf:
-                    bboxes.append(box)
-        
-        return bboxes
-    except:
-        return bboxes
     
 def annotate_image(image,bboxes,class_names = ["brick"], colors = [(1,0,0),(0,1,0),(0,0,1)]):
     for box in bboxes:

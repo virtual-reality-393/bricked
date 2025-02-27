@@ -43,9 +43,9 @@ def draw_box_coordinat(frame, brick_coordinates):
                 (x_start, y_start), (x_end, y_end) = line
                 cv2.line(new_frame, (x_start, y_start), (x_end, y_end), (255, 255, 255), 2)
 
-            for i in range(0, 100):
-                x = x_start + i * (x_end - x_start) // 100
-                y = y_start + i * (y_end - y_start) // 100
+            for i in range(0, 250):
+                x = int(x_start + i * (x_end - x_start) / 250)
+                y = int(y_start + i * (y_end - y_start) / 250)
                 if x < 0 or x >= new_frame.shape[1] or y < 0 or y >= new_frame.shape[0]:
                     continue
                 hsv = hsv_frame[y][x]
@@ -97,10 +97,15 @@ def stack_str_to_array(stack_str):
 
     #calculate the avager char count
     stack_avage = 0
+    test = []
+
     for _, count in stack_array:
-        stack_avage += count
+        test.append(count)
+
+
+    med = np.median(np.array(test))
     stack_avage = stack_avage / len(stack_array)
-    stack_array = [(color, count) for color, count in stack_array if count > stack_avage*0.8]
+    stack_array = [(color, count) for color, count in stack_array if count > med*0.7]
 
 
     #stack_array = stack_array[1:-1]
@@ -169,8 +174,10 @@ def mask_color(hsv_frame, color):
 
 
 def find_brick_centers(mask):
+
     
-    # Find contours in the mask
+    mask = cv2.erode(mask,np.ones((5,5)))
+
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     centers = []

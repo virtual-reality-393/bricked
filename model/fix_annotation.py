@@ -3,7 +3,7 @@ import glob
 import matplotlib.pyplot as plt
 
 
-annotation_files = glob.glob("processed_data/*.txt")[2:]
+annotation_files = glob.glob("processed_data/*.txt")
 
 for file in annotation_files:
 

@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 
 class Annotator:
-    def __init__(self, seg_model : str = "sam2.1_hiera_base_plus", anno_model = "run22.pt",unproc = "unprocessed_data/", need_anno = "needs_annotation/", proc = "processed_data/"):
+    def __init__(self, seg_model : str = "sam2.1_hiera_base_plus",model_to_use = 1,unproc = "unprocessed_data/", need_anno = "needs_annotation/", proc = "processed_data/"):
         if not Path.exists(Path(unproc)):
             raise IOError(f"Path to unprocessed data doesn't exist: {unproc}")
 
@@ -31,6 +31,8 @@ class Annotator:
         self.unproc = unproc
         self.need_anno = need_anno
         self.seg_model = seg_model
+        self.model_to_use = model_to_use
+        self.detector_model = BrickDetector()
 
         self.__mask_generator__ = None
 
@@ -157,10 +159,10 @@ class Annotator:
 
 
     def __pre_annotate__(self):
-        bboxes = detect(self.curr_image["org_img"],conf = 0.4)
+        bboxes = self.detector_model.detect(self.curr_image["org_img"],conf = 0.4,model_to_use = self.model_to_use)
         for box in bboxes:
             [x,y,w,h] = box.xywh[0]
-            self.__on_click__(1,int((x+w/2)/self.curr_image["factor"]),int((y+h/2)/self.curr_image["factor"]),None,[False])
+            self.__on_click__(1,int((x)/self.curr_image["factor"]),int((y)/self.curr_image["factor"]),None,[False])
 
 
 
@@ -204,16 +206,30 @@ class Annotator:
             return
         
         img_idx = 0
-        for vid_path in vid_paths:
+        for vid_path in tqdm(vid_paths):
             frames_this_vid = 0
-            print(f"Processing {vid_path}")
             video_capture = cv2.VideoCapture(vid_path)
+
+            frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+            
             saved_frame_name = 0
-            while video_capture.isOpened():
+            bad_shape = False
+            for i in tqdm(range(frames)):
                 frame_is_read, frame = video_capture.read()
 
                 if frame_is_read:
                     if saved_frame_name % 60 == 0:
+                        if frame.shape != (2064,1552,3):
+                            if not bad_shape:
+                                print("Invalid shape:", frame.shape, "resizing to (2064,1552,3) | Aspect ratio:",max(frame.shape[:2])/min(frame.shape[:2]))
+
+
+                            frame = cv2.resize(frame,(1552,2064))
+
+                            if not bad_shape:
+                                print(frame.shape)
+                                bad_shape = True
                         cv2.imwrite(f"{self.unproc}{str(img_idx)}.jpg", frame)
                         img_idx+=1
                         frames_this_vid+=1
@@ -232,18 +248,24 @@ class Annotator:
     def process_raw_images(self):
         image_paths = glob.glob(self.unproc + "*.jpg")
         mask_generator = self.__get_mask_generator__()
-        curr_highest = 0 if len(image_paths) > 0 else max([int(Path(path).name.split(".")[0]) for path in glob.glob(self.need_anno+"*.npz")]) + 1 
-
+        curr_highest = 0 if len(glob.glob(self.need_anno+"*.npz")) == 0 else max([int(Path(path).name.split(".")[0]) for path in glob.glob(self.need_anno+"*.npz")]) + 1 
+        prev_img_format = (0,0,0)
         for i,img_path in enumerate(tqdm(image_paths)):
 
 
             image = load_image(img_path)
 
+            
+
             scale_factor = max((min(image.shape[:2]) / 1024.0),1)
             if scale_factor != 1.515625:
                 print(img_path)
                 print(scale_factor)
+                os.remove(img_path)
                 continue
+
+            if prev_img_format != image.shape:
+                print(prev_img_format,image.shape)
             image_shape = (int(image.shape[1]/scale_factor), int(image.shape[0]/scale_factor))
             scaled_image = cv2.resize(image, image_shape)
 
@@ -256,6 +278,8 @@ class Annotator:
             self.__generate_visual_segmentation__(masks,self.need_anno + file_name,scaled_image,image,scale_factor)
 
             os.remove(img_path)
+
+            prev_img_format = image.shape
     
 
     def annotate(self):
@@ -394,7 +418,7 @@ if __name__ == "__main__":
     # anno.process_video()
     # anno.process_raw_images()
 
-    # anno.annotate()
+    #anno.annotate()
 
     create_splits()
 

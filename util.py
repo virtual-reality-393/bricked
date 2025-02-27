@@ -16,9 +16,13 @@ def get_color_name(h,s,v):
     h = int(h)
     h = h*2
 
+    s = int(s) * 2
+    v = int(v)*2
+
+
     if v < 50:
         return "black"
-    elif v > 200 and s < 30:
+    elif v > 200 and s < 100:
         return "white"
     elif h < 30 or h > 330:
         return "red"
@@ -56,6 +60,7 @@ def find_brick_by_color(image, color_name, is_video=False):
         h,s,v = hsv
         detected_color_name = get_color_name(h,s,v)
         if detected_color_name.lower() == color_name.lower():
+
             return (x1, y1, x2, y2)
             
     return None

@@ -9,7 +9,7 @@ import matplotlib as mpl
 #from brick import *
 from util import *
 import pygetwindow as gw
-
+import matplotlib.pyplot as plt
 
 def draw_box_coordinat(frame, brick_coordinates):
     new_frame = frame.copy()
@@ -38,7 +38,7 @@ def draw_box_coordinat(frame, brick_coordinates):
             for center in centers:
                 center = (center[0] + x1, center[1] + y1)
                 all_centers.append(center)
-                #cv2.circle(new_frame, center, 4, (255,0,255), -1)
+                cv2.circle(new_frame, center, 4, (255,0,255), -1)
    
         if len(all_centers) > 1:
             stack_str = ""
@@ -48,8 +48,8 @@ def draw_box_coordinat(frame, brick_coordinates):
                 cv2.line(new_frame, (x_start, y_start), (x_end, y_end), (255, 255, 255), 2)
 
             for i in range(0, 100):
-                x = x_start + i * (x_end - x_start) // 100
-                y = y_start + i * (y_end - y_start) // 100
+                x = int(x_start + i * (x_end - x_start) / 100)
+                y = int(y_start + i * (y_end - y_start) / 100)
                 if x < 0 or x >= new_frame.shape[1] or y < 0 or y >= new_frame.shape[0]:
                     continue
                 hsv = hsv_frame[y][x]
@@ -104,7 +104,7 @@ def stack_str_to_array(stack_str):
     for _, count in stack_array:
         stack_avage += count
     stack_avage = stack_avage / len(stack_array)
-    stack_array = [(color, count) for color, count in stack_array if count > stack_avage*0.8]
+    stack_array = [(color, count) for color, count in stack_array if stack_avage*0.7 < count]
 
 
     #stack_array = stack_array[1:-1]
@@ -148,8 +148,8 @@ def centers_to_line(centers, box):
 
 def mask_color(hsv_frame, color):
     if color == "red":
-        lower = 30
-        upper = 330
+        lower = 330
+        upper = 30
     elif color == "yellow":
         lower = 30
         upper = 90
@@ -168,13 +168,19 @@ def mask_color(hsv_frame, color):
     mask = mask_lower * mask_upper
     mask = mask.astype(np.uint8) * 255 
 
+    if color == "red":
+        mask = mask_lower + mask_upper
+        mask = mask.astype(np.uint8) * 255 
+
     return mask
 
 
 
 def find_brick_centers(mask):
+
     
-    # Find contours in the mask
+    mask = cv2.erode(mask,np.ones((5,5)))
+
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     centers = []
@@ -188,6 +194,7 @@ def find_brick_centers(mask):
             centers.append((cX, cY))
     
     return centers
+    
 
 
 brick_centers = {}
@@ -218,7 +225,7 @@ name_to_color = {"red": (0, 0, 255), "green": (0, 255, 0), "blue": (255, 100, 10
 # cv2.destroyAllWindows()
 
 
-video_path = "bricked/exercise/video/test_video.mp4"
+video_path = "model/unprocessed_data/raw_finished/test_video.mp4"
 video = cv2.VideoCapture(filename=video_path)
 
 while video.isOpened():
