@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 num_bricks_in_current_stack = len(stack_array)
                 
                 if num_bricks_in_current_stack < 2:
-                    text = "Start by stacking green on blue"
+                    text = f"Start by stacking {stack_to_build[1]} on top of {stack_to_build[0]}"
                 elif stack_array == stack_to_build or stack_array == stack_to_build[::-1]:
                     text = "Stacking complete! Good job"
                     state = "setup"

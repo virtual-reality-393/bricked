@@ -383,6 +383,32 @@ def draw_stack_box(frame, brick_coordinates, name_to_color):
 
     return new_frame, stack_array_to_return
     
+def find_stacks_and_bricks(frame):
+    stacks_box, bricks_box = detect(frame, conf=0.4)
+    
+    res_bricks = []
+    for box in bricks_box:
+        [x, y, w, h] = box.xywh[0]
+        x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
+        
+        w10 = int(w * 0.3)
+        h10 = int(h * 0.3)
+        x1_new = x1 + int(w * 0.35)
+        y1_new = y1 + int(h * 0.35)
+        x2_new = x1_new + w10
+        y2_new = y1_new + h10
+
+        # get average hsv value of the bounding box
+        hsv = cv2.cvtColor(frame[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_RGB2HSV)
+        hsv = np.median(hsv,axis=(0,1))
+        h,s,v = hsv
+        detected_color_name = get_color_name(h,s,v)
+        res_bricks.append((detected_color_name,(x1, y1, x2, y2)))
+
+        cv2.circle(frame, (x + w/2, y + h/2), 1, (255,0,255), 2)
+        
+
+
 
 
 def process_video():
