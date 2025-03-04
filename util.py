@@ -383,30 +383,137 @@ def draw_stack_box(frame, brick_coordinates, name_to_color):
 
     return new_frame, stack_array_to_return
     
-def find_stacks_and_bricks(frame):
-    stacks_box, bricks_box = detect(frame, conf=0.4)
-    
+def find_stacks_and_bricks(frame, brickdetector):
+    new_frame = frame.copy()
+    hsv_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2HSV)
+    stacks_box, bricks_box = brickdetector.detect(frame, conf=0.4)
+    #brick_centers = []
+
     res_bricks = []
+    res_stacks = []
+
     for box in bricks_box:
         [x, y, w, h] = box.xywh[0]
         x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
-        
-        w10 = int(w * 0.3)
-        h10 = int(h * 0.3)
-        x1_new = x1 + int(w * 0.35)
-        y1_new = y1 + int(h * 0.35)
-        x2_new = x1_new + w10
-        y2_new = y1_new + h10
+
+        x1_new = max(0, int(x - w * 0.05))
+        y1_new = max(0, int(y - h * 0.05))
+        x2_new = min(frame.shape[1], int(x + w * 0.05))
+        y2_new = min(frame.shape[0], int(y + h * 0.05))
+
+        # Ensure the region is valid
+        if x1_new >= x2_new or y1_new >= y2_new:
+            continue
 
         # get average hsv value of the bounding box
-        hsv = cv2.cvtColor(frame[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_RGB2HSV)
-        hsv = np.median(hsv,axis=(0,1))
-        h,s,v = hsv
-        detected_color_name = get_color_name(h,s,v)
-        res_bricks.append((detected_color_name,(x1, y1, x2, y2)))
+        hsv = cv2.cvtColor(frame[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_BGR2HSV)
+        hsv = np.median(hsv, axis=(0,1))
+        h, s, v = hsv
+        detected_color_name = get_color_name(h, s, v)
 
-        cv2.circle(frame, (x + w/2, y + h/2), 1, (255,0,255), 2)
+        if detected_color_name in ["green", "blue","yellow","red"]:
+            res_bricks.append((detected_color_name, (x1, y1, x2, y2)))
+       # brick_centers.append((x1 + int((x2 - x1) / 2), y1 + int((y2 - y1) / 2)))
+
+        # cv2.circle(new_frame, (x1 + int((x2 - x1) / 2), y1 + int((y2 - y1) / 2)), 3, (255, 0, 255), -1)
+
+    #temp_colors = [(0,0,0),(255,0,0),(0,255,0),(0,0,255),(255,0,255), (255,255,0), (0,255,255),(255,255,255)]
+    for i, stack_box in enumerate(stacks_box):
+        [x, y, w, h] = stack_box.xywh[0]
+        x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
+
+        # cv2.rectangle(new_frame, (x1, y1), (x2, y2), (0,0,0), 2)
+        # cv2.putText(new_frame, f'Stack {i+1}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,0), 2)
+
+        # Find centers in bricks_box that are inside the stack_box
+        centers_in_stack = []
+        bricks_in_stack = []
+        for color, (bx1, by1, bx2, by2) in res_bricks:
+            center_x = (bx1 + bx2) // 2
+            center_y = (by1 + by2) // 2
+            if x1 <= center_x <= x2 and y1 <= center_y <= y2:
+                centers_in_stack.append((center_x, center_y))
+                bricks_in_stack.append((color, (center_x, center_y)))
+            #center = (center_x,center_y)
+            # cv2.circle(new_frame, center, 6, (0,0,0), -1)
+            # cv2.circle(new_frame, center, 3, name_to_color[color], -1)
+
+        res_stacks.append((bricks_in_stack,(x1, y1, x2, y2)))
+
+    return res_stacks, res_bricks, new_frame
         
+def find_order_of_stack(stack):
+    bricks, _ = stack
+    order = []
+    res = []
+    if len(bricks) == 1:
+        return [bricks[0][0]]
+    
+    if len(bricks) == 2:
+        return [bricks[0][0], bricks[1][0]]
+
+    for i, brick in enumerate(bricks):
+        _, center = brick
+        dist1 = np.inf
+        dist2 = np.inf
+        id1 = 0
+        id2 = 0
+        vec1 = None
+        vec2 = None
+        for j,brick2 in enumerate(bricks):
+            if brick != brick2:
+                _, center2 = brick2
+                dist = np.linalg.norm(np.array(center) - np.array(center2))
+                if dist < dist1:
+                    dist2 = dist1
+                    dist1 = dist
+                    vec2 = vec1
+                    vec1 = np.array(center2) - np.array(center)
+                    id2 = id1
+                    id1 = j
+                elif dist < dist2:
+                    dist2 = dist
+                    vec2 = np.array(center2) - np.array(center)
+                    id2 = j
+
+        if np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)) < 0:
+            order.append((i,(id1,id2),False))
+        else:
+            order.append((i,(id1,None),True))
+        
+    start_id = next((brick for brick in order if brick[2]), None)
+    if start_id == None:
+        return []
+    
+    current_id = start_id[0]
+    next_id = 0
+    num_bricks_in_current_stack = 0
+
+    id_order = []
+
+    id_order.append(start_id[0])
+    while num_bricks_in_current_stack < len(order):
+        next_id1 = order[current_id][1][0]
+        next_id2 = order[current_id][1][1]
+
+        if next_id1 in id_order:
+            next_id = next_id2
+        elif next_id2 == None:
+            next_id = next_id1
+        else:
+            next_id = next_id1
+
+        if next_id == None:
+            break
+
+        id_order.append(next_id)
+        current_id = next_id
+        num_bricks_in_current_stack += 1
+    
+    for i in id_order:
+        res.append(bricks[i][0])
+
+    return res
 
 
 
