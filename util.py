@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from model.brick import *
 import math
+import random
 
 def get_color_name(h,s,v):
     h = int(h)
@@ -33,54 +34,54 @@ def get_color_name(h,s,v):
     else:
         return "unknown"
 
-def find_brick_by_color(image, color_name, is_video=False):
-    bboxes = detect(image, conf=0.4,is_video=is_video)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    for box in bboxes:
-        [x, y, w, h] = box.xywh[0]
-        x1, y1, x2, y2 = int(x), int(y), int(x + w), int(y + h)
+# def find_brick_by_color(image, color_name, is_video=False):
+#     bboxes = detect(image, conf=0.4,is_video=is_video)
+#     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+#     for box in bboxes:
+#         [x, y, w, h] = box.xywh[0]
+#         x1, y1, x2, y2 = int(x), int(y), int(x + w), int(y + h)
         
-        w10 = int(w * 0.3)
-        h10 = int(h * 0.3)
-        x1_new = x1 + int(w * 0.35)
-        y1_new = y1 + int(h * 0.35)
-        x2_new = x1_new + w10
-        y2_new = y1_new + h10
+#         w10 = int(w * 0.3)
+#         h10 = int(h * 0.3)
+#         x1_new = x1 + int(w * 0.35)
+#         y1_new = y1 + int(h * 0.35)
+#         x2_new = x1_new + w10
+#         y2_new = y1_new + h10
 
-        # get average hsv value of the bounding box
-        hsv = cv2.cvtColor(image[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_RGB2HSV)
-        hsv = np.median(hsv,axis=(0,1))
-        h,s,v = hsv
-        detected_color_name = get_color_name(h,s,v)
-        if detected_color_name.lower() == color_name.lower():
+#         # get average hsv value of the bounding box
+#         hsv = cv2.cvtColor(image[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_RGB2HSV)
+#         hsv = np.median(hsv,axis=(0,1))
+#         h,s,v = hsv
+#         detected_color_name = get_color_name(h,s,v)
+#         if detected_color_name.lower() == color_name.lower():
 
-            return (x1, y1, x2, y2)
+#             return (x1, y1, x2, y2)
             
-    return None
+#     return None
 
-def find_brick_and_color(image, is_video=False):
-    bboxes = detect(image, conf=0.4,is_video=is_video)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    res = []
-    for box in bboxes:
-        [x, y, w, h] = box.xywh[0]
-        x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
+# def find_brick_and_color(image, is_video=False):
+#     bboxes = detect(image, conf=0.4,is_video=is_video)
+#     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+#     res = []
+#     for box in bboxes:
+#         [x, y, w, h] = box.xywh[0]
+#         x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
         
-        w10 = int(w * 0.3)
-        h10 = int(h * 0.3)
-        x1_new = x1 + int(w * 0.35)
-        y1_new = y1 + int(h * 0.35)
-        x2_new = x1_new + w10
-        y2_new = y1_new + h10
+#         w10 = int(w * 0.3)
+#         h10 = int(h * 0.3)
+#         x1_new = x1 + int(w * 0.35)
+#         y1_new = y1 + int(h * 0.35)
+#         x2_new = x1_new + w10
+#         y2_new = y1_new + h10
 
-        # get average hsv value of the bounding box
-        hsv = cv2.cvtColor(image[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_RGB2HSV)
-        hsv = np.median(hsv,axis=(0,1))
-        h,s,v = hsv
-        detected_color_name = get_color_name(h,s,v)
-        res.append((detected_color_name,(x1, y1, x2, y2)))
+#         # get average hsv value of the bounding box
+#         hsv = cv2.cvtColor(image[y1_new:y2_new, x1_new:x2_new], cv2.COLOR_RGB2HSV)
+#         hsv = np.median(hsv,axis=(0,1))
+#         h,s,v = hsv
+#         detected_color_name = get_color_name(h,s,v)
+#         res.append((detected_color_name,(x1, y1, x2, y2)))
             
-    return res
+#     return res
 
 def color_of_pixel(image, x, y):
 
@@ -387,7 +388,6 @@ def find_stacks_and_bricks(frame, brickdetector):
     new_frame = frame.copy()
     hsv_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2HSV)
     stacks_box, bricks_box = brickdetector.detect(frame, conf=0.4)
-    #brick_centers = []
 
     res_bricks = []
     res_stacks = []
@@ -413,11 +413,9 @@ def find_stacks_and_bricks(frame, brickdetector):
 
         if detected_color_name in ["green", "blue","yellow","red"]:
             res_bricks.append((detected_color_name, (x1, y1, x2, y2)))
-       # brick_centers.append((x1 + int((x2 - x1) / 2), y1 + int((y2 - y1) / 2)))
 
         # cv2.circle(new_frame, (x1 + int((x2 - x1) / 2), y1 + int((y2 - y1) / 2)), 3, (255, 0, 255), -1)
 
-    #temp_colors = [(0,0,0),(255,0,0),(0,255,0),(0,0,255),(255,0,255), (255,255,0), (0,255,255),(255,255,255)]
     for i, stack_box in enumerate(stacks_box):
         [x, y, w, h] = stack_box.xywh[0]
         x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
@@ -515,7 +513,24 @@ def find_order_of_stack(stack):
 
     return res
 
+def generate_stack_to_build(bricks_in_frame, default=False):
+    bricks = [color for color, count in bricks_in_frame.items() for _ in range(count)]
+    stack_to_build = []
 
+    random.shuffle(bricks)
+
+    stack_to_build.append(bricks.pop(0))
+ 
+    # Ensure no repeating colors
+    for brick in bricks:
+        if stack_to_build[-1] != brick:
+            stack_to_build.append(brick)
+  
+    if default:
+        stack_to_build = ["blue", "green", "yellow", "red", "green", "yellow", "blue", "yellow", "green"]
+
+    print(stack_to_build)
+    return stack_to_build
 
 
 def process_video():
