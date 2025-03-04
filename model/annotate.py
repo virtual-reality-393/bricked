@@ -32,7 +32,7 @@ class Annotator:
         self.need_anno = need_anno
         self.seg_model = seg_model
         self.model_to_use = model_to_use
-        self.detector_model = BrickDetector()
+        self.detector_model = BrickDetector(is_video=False)
 
         self.__mask_generator__ = None
 
@@ -159,7 +159,7 @@ class Annotator:
 
 
     def __pre_annotate__(self):
-        bboxes = self.detector_model.detect(self.curr_image["org_img"],conf = 0.4,model_to_use = self.model_to_use)
+        bboxes = self.detector_model.detect(cv2.cvtColor(self.curr_image["org_img"],cv2.COLOR_RGB2BGR),conf = 0.4,model_to_use = self.model_to_use)
         for box in bboxes:
             [x,y,w,h] = box.xywh[0]
             self.__on_click__(1,int((x)/self.curr_image["factor"]),int((y)/self.curr_image["factor"]),None,[False])
@@ -219,7 +219,7 @@ class Annotator:
                 frame_is_read, frame = video_capture.read()
 
                 if frame_is_read:
-                    if saved_frame_name % 60 == 0:
+                    if saved_frame_name % 20 == 0:
                         if frame.shape != (2064,1552,3):
                             if not bad_shape:
                                 print("Invalid shape:", frame.shape, "resizing to (2064,1552,3) | Aspect ratio:",max(frame.shape[:2])/min(frame.shape[:2]))
@@ -352,13 +352,15 @@ class Annotator:
             labels_string = ""
 
             for x,y,w,h in self.rects[self.curr_idx]:
-                labels_string += f"0 {x/image.shape[1]} {y/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
+                labels_string += f"0 {(x+w/2)/image.shape[1]} {(y+h/2)/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
 
             if len(self.rects[self.curr_idx]) > 0 or save_override:
                 if save:
                     labels_string = labels_string.rstrip("\n")
             
                     plt.imsave(f"processed_data/{file_name}.jpg",org_img)
+
+                    print("saving",f"processed_data/{file_name}")
 
                     with open(f"processed_data/{file_name}.txt","w") as text_file:
                         text_file.write(labels_string)
@@ -418,7 +420,10 @@ if __name__ == "__main__":
     # anno.process_video()
     # anno.process_raw_images()
 
-    #anno.annotate()
+    try:
+        anno.annotate()
+    except Exception as e:
+        print(e.with_traceback())
 
     create_splits()
 

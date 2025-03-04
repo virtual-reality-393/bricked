@@ -1,12 +1,18 @@
 from RealtimeTTS import TextToAudioStream, SystemEngine, PiperEngine, PiperVoice
 from RealtimeSTT import AudioToTextRecorder
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, TextStreamer
+# from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, TextStreamer
+from multiprocessing import Process, Queue
+from multiprocessing.connection import PipeConnection
 
 class VoiceAssistant:
 
     def __init__(self, language : str = "en", voice : str = "models/joe", in_audio : int = 11, out_audio : int = 13):
-        self.message_history = [{"role": "system","content": "You are a personal voice assistant controlled via a pair of smart glasses. Please keep your messages concise"}]
-        print("LLM")
+        # self.message_history = []
+
+        # self.message_history.append({"role": "system","content": "You are trying to help a person stack lego bricks on top of each other. You will get extra information from a program that can detect and generate brick stack orders. Your job is to guide the user to stack the bricks in the order given by the program. Do not inform the user of anything that they didn't ask for"})
+        # self.message_history.append({"role": "system", "content": "In front of the person there are currently, 1 red brick, 3 yellow bricks, 3 green bricks and 2 blue bricks"})
+        # self.message_history.append({"role": "system", "content": "The current stack order is [red,green,blue,green,yellow,green,yellow,blue,yellow,blue]"})
+        # print("LLM")
         # self.llm_model = AutoModelForCausalLM.from_pretrained(
         #     "jpacifico/Chocolatine-3B-Instruct-DPO-Revised",
         #     device_map="cuda",
@@ -20,14 +26,36 @@ class VoiceAssistant:
         #     model=self.llm_model,
         #     tokenizer=self.llm_tokenizer,
         # )
-        print("TTS Voice")
-        self.tts_voice = PiperVoice(model_file=voice + ".onnx", config_file=voice + ".txt")
-        print("TTS Engine")
-        self.tts_engine = PiperEngine(voice = self.tts_voice,debug=True)
-        print("TTS Stream")
-        self.tts_stream = TextToAudioStream(engine = self.tts_engine,output_device_index=out_audio,language=language)
+        
         # print("STT Recorder")
         # self.stt_recorder = AudioToTextRecorder(language=language,input_device_index=in_audio)
+
+
+        self.language = language
+        self.voice = voice
+        self.in_audio = in_audio
+        self.out_audio = out_audio
+        self.message_queue = Queue()
+
+        self.tts_process = Process(target=self.__tts_process__,args=(self.message_queue,))
+        self.tts_process.start()
+
+
+        
+    def __tts_process__(self,queue : Queue):
+        message = ""
+
+        tts_voice = PiperVoice(model_file=self.voice + ".onnx", config_file=self.voice + ".txt")
+        tts_engine = PiperEngine(voice = tts_voice,debug=True)
+        tts_stream = TextToAudioStream(engine = tts_engine,output_device_index=self.out_audio,language=self.language)
+        while True:
+            message = queue.get()
+            if message == "KILL_PROCESS":
+                exit()
+                
+            tts_stream.feed(message)
+            tts_stream.play()
+
 
 
 
@@ -54,19 +82,24 @@ class VoiceAssistant:
         return self.stt_recorder.text()
 
     
-    def play_message(self,message : str = "DEFAULT_MESSAGE", play_async : bool = False) -> None:
-        print("Feeding message")
-        self.tts_stream.feed(message)
-        if play_async:
-            print("Playing ASYNC")
-            self.tts_stream.play_async()
-        else:
-            print("Playing SYNC")
-            self.tts_stream.play()
+    def play_message(self,message : str = "DEFAULT_MESSAGE") -> None:
+        self.message_queue.put(message)
 
 if __name__ == "__main__":
     print("Setting up assistant")
     assistant = VoiceAssistant()
-    print("Assistant is ready")
-    print("Playing message")
-    assistant.play_message("Testing, testing, 1, 2, 3, is it working?")
+    print("adding message")
+    assistant.play_message("This is a test")
+    print("adding message")
+    assistant.play_message("This is a test")
+    print("adding message")
+    assistant.play_message("This is a test")
+    print("adding message")
+    assistant.play_message("This is a test")
+
+    print("adding kill signal")
+    assistant.play_message("KILL_PROCESS")
+
+    print("waiting for process")
+    assistant.tts_process.join()
+

@@ -8,12 +8,13 @@ import torch
 import matplotlib as mpl
 from brick import *
 import pygetwindow as gw
+import matplotlib.pyplot as plt
 
 class_names = ["brick"]
 def normalize(data):
     return (data - data.min()) / (data.max() - data.min())
 
-
+detection = BrickDetector()
 # Function to get class colors
 def getColours(cls_num):
     base_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
@@ -43,7 +44,7 @@ with mss() as sct:
 
         frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
 
-        bboxes = detect(frame,is_video=True,conf=0.2)
+        bboxes,bboxes2 = detection.detect(frame,conf=0.4)
 
         for box in bboxes:
             # check if confidence is greater than 40 percent
@@ -65,7 +66,35 @@ with mss() as sct:
                 class_name = class_names[cls]
 
                 # get the respective colour
-                colour = getColours(cls)
+                colour = (0,255,0)
+
+                # draw the rectangle
+                cv2.rectangle(frame, (x1, y1), (x2, y2), colour, 2)
+
+                # put the class name and confidence on the image
+                cv2.putText(frame, f'{class_names[int(box.cls[0])]} {box.conf[0]:.2f}', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 1, colour, 2)
+
+        for box in bboxes2:
+            # check if confidence is greater than 40 percent
+            if box.conf[0] > 0.4:
+                # get coordinates
+                [x,y,w,h] = box.xywh[0]
+
+                x1 = x - w/2
+                x2 = x + w/2
+                y1 = y - h/2
+                y2 = y + h/2
+                # convert to int
+                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
+                # get the class
+                cls = int(box.cls[0])
+
+                # get the class name
+                class_name = class_names[cls]
+
+                # get the respective colour
+                colour = (0,0,255)
 
                 # draw the rectangle
                 cv2.rectangle(frame, (x1, y1), (x2, y2), colour, 2)

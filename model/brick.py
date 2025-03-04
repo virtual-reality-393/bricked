@@ -2,14 +2,9 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from ultralytics.engine.results import Boxes
-import random
-import matplotlib.pyplot as plt
-import os
-
-
 
 class BrickDetector:
-    def __init__(self,single_model : str = "models/run32.pt", multi_model : str = "models/run35_stacked.pt", is_video : bool = True):
+    def __init__(self,single_model : str = "models/run32.pt", multi_model : str = "models/run37_stacked.pt", is_video : bool = True):
         self.single_model = YOLO(single_model)
         self.multi_model = YOLO(multi_model)
         self.is_video = is_video
@@ -35,9 +30,9 @@ class BrickDetector:
         single_results = []
         multi_results = []
         if model_to_use == 0 or model_to_use == 2:
-            single_results = self.single_model.track(image,stream = self.is_video, persist = self.is_video,verbose = False)
+            single_results = self.single_model.track(image,stream = True, persist = self.is_video,verbose = False)
         if model_to_use == 1 or model_to_use == 2:
-            multi_results = self.multi_model.track(image,stream = self.is_video, persist = self.is_video,verbose = False)
+            multi_results = self.multi_model.track(image,stream = True, persist = self.is_video,verbose = False)
 
         single_bboxes = []
         multi_bboxes = []
@@ -65,13 +60,6 @@ class BrickDetector:
         if model_to_use == 2:
             return single_bboxes, multi_bboxes
             
-        
-        
-        
-        
-
-os.environ['YOLO_VERBOSE'] = 'False'
-yolo_model = None
 
 def random_color():
     return np.random.randint(0, 255, (3), dtype=np.uint8).tolist()
@@ -87,7 +75,7 @@ def load_image(path: str) -> np.ndarray:
 
 
     
-def annotate_image(image,bboxes,class_names = ["brick"], colors = [(1,0,0),(0,1,0),(0,0,1)]):
+def annotate_image(image,bboxes,class_names = ["brick"], colors = [(0,255,0),(255,0,0),(0,0,255)]):
     for box in bboxes:
         # check if confidence is greater than 40 percent
         if box.conf[0] > 0.4:

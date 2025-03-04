@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 DATA_PATH = "processed_data/"
 
-image_paths = sorted(glob.glob(DATA_PATH + "*.jpg"))
-labels = sorted(glob.glob(DATA_PATH + "*.txt"))
+image_paths = sorted(glob.glob(DATA_PATH + "*.jpg"))[-1:]
+labels = sorted(glob.glob(DATA_PATH + "*.txt"))[-1:]
 
 for i in range(len(image_paths)):
     image = load_image(image_paths[i])
