@@ -1,34 +1,34 @@
 from RealtimeTTS import TextToAudioStream, SystemEngine, PiperEngine, PiperVoice
 from RealtimeSTT import AudioToTextRecorder
-# from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, TextStreamer
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, TextStreamer
 from multiprocessing import Process, Queue
 from multiprocessing.connection import PipeConnection
 
 class VoiceAssistant:
 
-    def __init__(self, language : str = "en", voice : str = "models/joe", in_audio : int = 11, out_audio : int = 13):
-        # self.message_history = []
+    def __init__(self, language : str = "en", voice : str = "models/talesyntese", in_audio : int = 12, out_audio : int = 14):
+        self.message_history = []
+        self.message_history.append({"role": "system", "content": "Du er bindeedet mellem en bruger og et system, du skal oversætte brugerens input til den kommando du mener er tættest på hvad brugeren vil have, hvis dit output ikke matcher hvad systemet forventer vil det blive henkastet. Kommandoerne er alle i formatet {COMMAND}, og den inderste tekst betyder hvilken kommando der bliver sendt. Du skal så baseret på brugerens input sende det kommando signalet som er tættest på. Kommando 1: {NUM_BRICK} - Kan informere brugeren om hvor mange klodser der er | Kommando 2: {CURR_STACK} - Kan informere brugeren om den stabel af klodser de har samlet | Kommando 3: {BUILD_ORDER} - Kan informere brugeren om den rækkefølge det er meningen de skal samle. Du skal kun sende 1 kommando per besked du modtager"})
 
-        # self.message_history.append({"role": "system","content": "You are trying to help a person stack lego bricks on top of each other. You will get extra information from a program that can detect and generate brick stack orders. Your job is to guide the user to stack the bricks in the order given by the program. Do not inform the user of anything that they didn't ask for"})
-        # self.message_history.append({"role": "system", "content": "In front of the person there are currently, 1 red brick, 3 yellow bricks, 3 green bricks and 2 blue bricks"})
-        # self.message_history.append({"role": "system", "content": "The current stack order is [red,green,blue,green,yellow,green,yellow,blue,yellow,blue]"})
-        # print("LLM")
-        # self.llm_model = AutoModelForCausalLM.from_pretrained(
-        #     "jpacifico/Chocolatine-3B-Instruct-DPO-Revised",
-        #     device_map="cuda",
-        #     torch_dtype="auto",
-        #     trust_remote_code=True,
-        # )
-        # self.llm_tokenizer = AutoTokenizer.from_pretrained("jpacifico/Chocolatine-3B-Instruct-DPO-Revised")
+        print("LLM")
+        self.llm_model = AutoModelForCausalLM.from_pretrained(
+            "jpacifico/Chocolatine-3B-Instruct-DPO-Revised",
+            device_map="cuda",
+            torch_dtype="auto",
+            trust_remote_code=True,
+        )
+        self.llm_tokenizer = AutoTokenizer.from_pretrained("jpacifico/Chocolatine-3B-Instruct-DPO-Revised")
 
-        # self.pipeline  = pipeline(
-        #     "text-generation",
-        #     model=self.llm_model,
-        #     tokenizer=self.llm_tokenizer,
-        # )
+        self.pipeline  = pipeline(
+            "text-generation",
+            model=self.llm_model,
+            tokenizer=self.llm_tokenizer,
+        )
         
-        # print("STT Recorder")
-        # self.stt_recorder = AudioToTextRecorder(language=language,input_device_index=in_audio)
+        print("STT Recorder")
+
+    
+        self.stt_recorder = AudioToTextRecorder(language=language,input_device_index=in_audio,model="medium")
 
 
         self.language = language
@@ -37,29 +37,18 @@ class VoiceAssistant:
         self.out_audio = out_audio
         self.message_queue = Queue()
 
-        self.tts_process = Process(target=self.__tts_process__,args=(self.message_queue,))
+        self.tts_process = Process(target=__tts_process__,args=(self.message_queue,))
         self.tts_process.start()
 
 
         
-    def __tts_process__(self,queue : Queue):
-        message = ""
 
-        tts_voice = PiperVoice(model_file=self.voice + ".onnx", config_file=self.voice + ".txt")
-        tts_engine = PiperEngine(voice = tts_voice,debug=True)
-        tts_stream = TextToAudioStream(engine = tts_engine,output_device_index=self.out_audio,language=self.language)
-        while True:
-            message = queue.get()
-            if message == "KILL_PROCESS":
-                exit()
-                
-            tts_stream.feed(message)
-            tts_stream.play()
+    def __stt_process__(self,queue: Queue):
+        pass
 
 
 
-
-    def generate_response(self,prompt : str, max_new_tokens : int = 500, temperature : float = 0.5) -> str:
+    def generate_response(self,prompt : str, max_new_tokens : int = 500, temperature : float = 0.4) -> str:
     
         self.message_history.append({"role": "user", "content": prompt})
 
@@ -85,21 +74,32 @@ class VoiceAssistant:
     def play_message(self,message : str = "DEFAULT_MESSAGE") -> None:
         self.message_queue.put(message)
 
+def __tts_process__(queue : Queue, voice = "models/joe", out_audio = 14, language = "da"):
+        message = ""
+
+        tts_voice = PiperVoice(model_file=voice + ".onnx", config_file=voice + ".txt")
+        tts_engine = PiperEngine(voice = tts_voice,debug=True)
+        tts_stream = TextToAudioStream(engine = tts_engine,output_device_index=out_audio,language=language)
+        while True:
+            message = queue.get()
+            if message == "KILL_PROCESS":
+                exit()
+
+            tts_stream.feed(message)
+            tts_stream.play()
+
 if __name__ == "__main__":
     print("Setting up assistant")
-    assistant = VoiceAssistant()
-    print("adding message")
-    assistant.play_message("This is a test")
-    print("adding message")
-    assistant.play_message("This is a test")
-    print("adding message")
-    assistant.play_message("This is a test")
-    print("adding message")
-    assistant.play_message("This is a test")
+    assistant = VoiceAssistant(language="da")
+    while True:
+        user_input = assistant.get_message()
+        command = assistant.generate_response(user_input)
 
-    print("adding kill signal")
-    assistant.play_message("KILL_PROCESS")
-
-    print("waiting for process")
-    assistant.tts_process.join()
-
+        if "NUM_BRICK" in command:
+            assistant.play_message("Der er 5 klodser foran dig")
+        elif "BUILD_ORDER" in command:
+            assistant.play_message("Rækkefølgen er grøn, blå, rød, gul")
+        elif "CURR_STACK" in command:
+            assistant.play_message("Du har sat blå oven på en grøn, den næste du skal placere er en rød")
+        else:
+            assistant.play_message(command)
