@@ -25,20 +25,20 @@ class VoiceAssistant:
             tokenizer=self.llm_tokenizer,
         )
         
-        print("STT Recorder")
+        # print("STT Recorder")
 
     
-        self.stt_recorder = AudioToTextRecorder(language=language,input_device_index=in_audio,model="medium")
+        # self.stt_recorder = AudioToTextRecorder(language=language,input_device_index=in_audio,model="medium")
 
 
-        self.language = language
-        self.voice = voice
-        self.in_audio = in_audio
-        self.out_audio = out_audio
-        self.message_queue = Queue()
+        # self.language = language
+        # self.voice = voice
+        # self.in_audio = in_audio
+        # self.out_audio = out_audio
+        # self.message_queue = Queue()
 
-        self.tts_process = Process(target=__tts_process__,args=(self.message_queue,))
-        self.tts_process.start()
+        # self.tts_process = Process(target=__tts_process__,args=(self.message_queue,))
+        # self.tts_process.start()
 
 
         
