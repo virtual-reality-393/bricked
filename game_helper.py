@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from model.brick import *
 import random
+import json
 
 
 class Brick:
@@ -11,6 +12,12 @@ class Brick:
         self.box = box
         self.center = (box[0] + int((box[2] - box[0]) / 2), box[1] + int((box[3] - box[1]) / 2))
         self.in_stack = False
+
+    def toJSON(self):
+        return json.dumps(
+            self,
+            default=lambda o: o.__dict__,
+            ensure_ascii=False)
 
 class Stack:
     
@@ -100,6 +107,13 @@ class Stack:
             res.append(bricks[i])
 
         return res
+    
+    def toJSON(self):
+        return json.dumps(
+            self,
+            default=lambda o: o.__dict__,
+            ensure_ascii=False)
+
 
 
 

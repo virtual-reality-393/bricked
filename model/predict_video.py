@@ -4,10 +4,10 @@ import os
 
 os.environ['YOLO_VERBOSE'] = 'False'
 
-def predict_video(video_path : str):
+def predict_video(video_path : str, show_vid = True):
 
 
-    detector = BrickDetector(multi_model="models/run40_single.pt")
+    detector = BrickDetector(multi_model="models/run43_stacked.pt")
     video = cv2.VideoCapture(filename=video_path)
 
     out = cv2.VideoWriter('predicted.mp4', -1, 25, (1552//3,2064//3))
@@ -22,14 +22,18 @@ def predict_video(video_path : str):
         annotate_image(frame,multi_bboxes)
 
         if frame_is_read:
-            frame = cv2.resize(frame,(frame.shape[1]//3,frame.shape[0]//3))
-            cv2.imshow("frame",frame)
+            frame = cv2.resize(frame,((1552//3,2064//3)))
+            if show_vid:
+                
+                cv2.imshow("frame",frame)
 
-            if cv2.waitKey(1) == ord("q"):
-                break
+                if cv2.waitKey(1) == ord("q"):
+                    break
             out.write(frame)
         else:
             break
 
-vid_name = "test_video_3"
-predict_video(rf"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\raw_finished\{vid_name}.mp4")
+    out.release()
+
+vid_name = "20250213_100025_190f68c0"
+predict_video(rf"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\raw_finished\{vid_name}.mp4",show_vid=True)

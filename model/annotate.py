@@ -130,12 +130,17 @@ class Annotator:
 
             min_y = min(y1,y2)
             max_y = max(y1,y2)
-            cv2.rectangle(overlay,(min_x,min_y),(max_x,max_y),(1,0,1,1),2)
+            cv2.rectangle(overlay,(min_x,min_y),(max_x,max_y),(1,0,1,1),-1)
 
         overlay = cv2.addWeighted(overlay,0.7,overlay,0,0)
 
+        
+
+
+        self.curr_image["display_img"] = cv2.addWeighted(self.curr_image["segment_img"],1,overlay,0.5,0)
+
         for (x,y,w,h) in self.rects[self.curr_idx]:
-            cv2.rectangle(overlay,(x,y),(x+w,y+h),(1,0,0,1),2)
+            cv2.rectangle(self.curr_image["display_img"],(x,y),(x+w,y+h),(0.8,0,0,1),2)
 
         if self.bbox_active:
             (x1,y1),(x2,y2) = self.select_bbox
@@ -145,9 +150,9 @@ class Annotator:
 
             min_y = min(y1,y2)
             max_y = max(y1,y2)
-            cv2.rectangle(overlay,(min_x,min_y),(max_x,max_y),(1,0,1,1),2)
+            cv2.rectangle(self.curr_image["display_img"],(min_x,min_y),(max_x,max_y),(1,0,1,1),2)
 
-        self.curr_image["display_img"] = cv2.addWeighted(self.curr_image["segment_img"],1,overlay,0.5,0)
+        
 
         if self.curr_idx in self.extra_anno:
             for (x,y) in self.extra_anno[self.curr_idx]:
@@ -219,7 +224,7 @@ class Annotator:
                 frame_is_read, frame = video_capture.read()
 
                 if frame_is_read:
-                    if saved_frame_name % 20 == 0:
+                    if saved_frame_name % 60 == 0:
                         if frame.shape != (2064,1552,3):
                             if not bad_shape:
                                 print("Invalid shape:", frame.shape, "resizing to (2064,1552,3) | Aspect ratio:",max(frame.shape[:2])/min(frame.shape[:2]))
@@ -331,6 +336,9 @@ class Annotator:
                 if key_press == ord("r"):
                     self.rects[self.curr_idx].pop()
 
+                if key_press == ord("R"):
+                    self.rects[self.curr_idx] = []
+
                 if key_press == ord("a"):
                     idx = max(idx-1,0)
                     break
@@ -415,10 +423,10 @@ def create_splits(in_path : str = "processed_data/", out_path : str = "datasets/
 
         
 if __name__ == "__main__":
-    anno = Annotator()
+    anno = Annotator(model_to_use=0)
 
-    # anno.process_video()
-    # anno.process_raw_images()
+    anno.process_video()
+    anno.process_raw_images()
 
     try:
         anno.annotate()
