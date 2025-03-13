@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 from model.brick import *
 import random
-
+import pygetwindow as gw
+import scipy.spatial as spatial
 
 class Brick:
     
@@ -118,8 +119,18 @@ class GameHelper:
 
         self.bigest_stack = None
 
+    def get_frame(self, sct):
+        # monitor = sct.monitors[2]
+        window = gw.getWindowsWithTitle("Pixel 6 Pro")[0]
+        monitor = window.left+25, window.top+100, window.left + window.width-25, window.top + window.height-75
+        # monitor = window.left, window.top, window.left + window.width, window.top + window.height
+        sct_img = sct.grab(monitor)
+        frame = np.array(sct_img)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
+        return frame
 
-    def process_frame(self, frame):
+    def process_frame(self, frame, is_video = True):
+        self.brickDetector.is_video = is_video
         stacks, bricks = self.__find_stacks_and_bricks__(frame, self.brickDetector)
 
         res_stacks = []
@@ -143,23 +154,46 @@ class GameHelper:
         self.stacks = res_stacks
 
     def generate_stack_to_build(self,bricks_in_frame, default=False):
-        #bricks = [color for color, count in bricks_in_frame.items() for _ in range(count)]
-        bricks = ["red", "green","green","green", "blue","blue", "yellow","yellow","yellow"]
+        bricks = [color for color, count in bricks_in_frame.items() for _ in range(count)]
+        #bricks = ["red", "green","green","green", "blue","blue", "yellow","yellow","yellow"]
         stack_to_build = []
 
         random.shuffle(bricks)
 
-        stack_to_build.append(bricks.pop(0))
+        for i, brick in enumerate(bricks):
+            if brick != "yellow":
+                stack_to_build.append(bricks.pop(i))
+                break
     
         for brick in bricks:
             if stack_to_build[-1] != brick:
                 stack_to_build.append(brick)
     
-        if default:
+        if default or bricks == []:
             stack_to_build = ["blue", "green", "yellow", "red", "green", "yellow", "blue", "yellow", "green"]
 
         print(stack_to_build)
         return stack_to_build
+
+    def doggoDetect(self, build):
+        trueDoggo = None
+
+        if build == trueDoggo:
+            return True
+        
+        return False
+
+    def build_to_graf(self, build):
+        bricks = build.bricks
+        
+        centers = [brick.center for brick in bricks]
+        dist_mat = spatial.distance_matrix(centers, centers)
+        
+        return dist_mat
+    
+    def graf_tjek(self, graf1, graf2):
+                
+        return False
 
     def get_stacks(self):
         return self.stacks.copy()
@@ -229,8 +263,7 @@ class GameHelper:
             for brick in res_bricks:
                 center_x, center_y = brick.center
                 if x1 <= center_x <= x2 and y1 <= center_y <= y2:
-                    if len(bricks_in_stack) > 0 and bricks_in_stack[-1].color != brick.color:
-                        bricks_in_stack.append(brick)
+                    bricks_in_stack.append(brick)
 
             res_stacks.append(Stack(bricks_in_stack, (x1, y1, x2, y2)))
 
@@ -273,12 +306,13 @@ class GameVisualizer():
         cv2.putText(frame, text, position, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,0), 12)
         cv2.putText(frame, text, position, cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     
-    def draw_brick(self, frame, brick):
+    def draw_brick(self, frame, brick, doName = True):
         x1, y1, x2, y2 = brick.box
         cv2.circle(frame, brick.center, 7, (0,0,0), -1)
         cv2.circle(frame, brick.center, 4, (255,0,255), -1)
         cv2.rectangle(frame, (x1, y1), (x2, y2), self.name_to_color[brick.color], 2)
-        self.write_text(frame, f'{brick.color} brick', (x1, y1 - 10), self.name_to_color[brick.color])
+        if doName:
+            self.write_text(frame, f'{brick.color} brick', (x1, y1 - 10), self.name_to_color[brick.color])
 
     def draw_stacks(self, frame, stacks):
         for j, stack in enumerate(stacks):
@@ -295,3 +329,12 @@ class GameVisualizer():
                     self.write_text(frame, f'{color}', (x1-70, y1 + 22 * i), self.name_to_color[color])
                     cv2.circle(frame, brick.center, 7, (0,0,0), -1)
                     cv2.circle(frame, brick.center, 4, (255,0,255), -1)
+    
+    def draw_build(self, frame, build):
+        x1, y1, x2, y2 = build.box
+        if len(build.bricks) > 1:
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 2)
+            self.write_text(frame, f'Build', (x1, y1 - 10))
+            for brick in build.bricks:
+                cv2.circle(frame, brick.center, 7, (0,0,0), -1)
+                cv2.circle(frame, brick.center, 4, (255,0,255), -1)
