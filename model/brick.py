@@ -75,7 +75,7 @@ def load_image(path: str) -> np.ndarray:
 
 
     
-def annotate_image(image,bboxes,class_names = ["brick"], colors = [(0,255,0),(255,0,0),(0,0,255)]):
+def annotate_image(image,bboxes,class_names = ["red","green","blue","yellow"], colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 0, 255)]):
     for box in bboxes:
         # check if confidence is greater than 40 percent
         if box.conf[0] > 0.4:

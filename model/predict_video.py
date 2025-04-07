@@ -7,7 +7,7 @@ os.environ['YOLO_VERBOSE'] = 'False'
 def predict_video(video_path : str, show_vid = True):
 
 
-    detector = BrickDetector(multi_model="models/run43_stacked.pt")
+    detector = BrickDetector(multi_model=r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train56\weights\best.pt")
     video = cv2.VideoCapture(filename=video_path)
 
     out = cv2.VideoWriter('predicted.mp4', -1, 25, (1552//3,2064//3))
@@ -35,5 +35,5 @@ def predict_video(video_path : str, show_vid = True):
 
     out.release()
 
-vid_name = "20250213_100025_190f68c0"
+vid_name = "test_video_4"
 predict_video(rf"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\raw_finished\{vid_name}.mp4",show_vid=True)

@@ -10,7 +10,7 @@ def putText(frame, text, x, y, color=(0, 0, 0), size=0.7, use_voice=False, assis
 
     cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, (0,0,0), 12)
     cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, size, color, 2)
-
+ 
     if use_voice and assistant:
         assistant.play_message(text)
 
@@ -118,9 +118,9 @@ if __name__ == "__main__":
                     #     text = "debug text"
 
             if text != previos_text:
-                new_frame = putText(new_frame, text, 110, 150, (255,255,255), 0.7, True, assistant)
+                new_frame = putText(new_frame, text, 90, 150, (255,255,255), 0.7, True, assistant)
             else:
-                new_frame = putText(new_frame, text, 110, 150, (255,255,255), 0.7, False)
+                new_frame = putText(new_frame, text, 90, 150, (255,255,255), 0.7, False)
             
             previos_text = text
 

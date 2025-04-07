@@ -263,14 +263,8 @@ class Annotator:
             
 
             scale_factor = max((min(image.shape[:2]) / 1024.0),1)
-            if scale_factor != 1.515625:
-                print(img_path)
-                print(scale_factor)
-                os.remove(img_path)
-                continue
 
-            if prev_img_format != image.shape:
-                print(prev_img_format,image.shape)
+
             image_shape = (int(image.shape[1]/scale_factor), int(image.shape[0]/scale_factor))
             scaled_image = cv2.resize(image, image_shape)
 
