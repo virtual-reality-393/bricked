@@ -75,7 +75,7 @@ def load_image(path: str) -> np.ndarray:
 
 
     
-def annotate_image(image,bboxes,class_names = ["red","green","blue","yellow"], colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 0, 255)]):
+def annotate_image(image,bboxes,class_names = ["red","green","blue","yellow","big_penguin","small_penguin","lion","sheep","pig","human"], colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0), (0, 255, 255),(0.4,0.4,1),(0.4,1,0.4),(1,1,0.4),(1,1,1),(1,0.5,0.5),(1.0,0.2,0.8)]):
     for box in bboxes:
         # check if confidence is greater than 40 percent
         if box.conf[0] > 0.4:
@@ -98,6 +98,8 @@ def annotate_image(image,bboxes,class_names = ["red","green","blue","yellow"], c
             # get the respective color
             color = colors[cls]
 
+            if sum(color) < 10:
+                color = (color[0]*255,color[1]*255,color[2]*255)
             # draw the rectangle
             cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
 

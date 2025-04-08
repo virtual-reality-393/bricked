@@ -13,8 +13,23 @@ from pathlib import Path
 import shutil
 from tqdm import tqdm
 
-name_to_color = {"red": (0, 0, 255), "green": (0, 255, 0), "blue": (255, 0, 0), "yellow": (0, 255, 255), "magenta": (255, 0, 255)}
-name_to_index = {"red": 0, "green": 1, "blue": 2, "yellow": 3}
+index_to_name = {0:"red",1:"green",2:"blue",3:"yellow",4:"big penguin",5:"small penguin",6:"lion",7:"sheep",8:"pig",9:"human"}
+
+index_to_color = {0:(1,0,0,1),1:(0,1,0,1),2:(0,0,1,1),3:(1,1,0,1),4:(0.4,0.4,1,1),5:(0.4,1,0.4,1),6:(1,1,0.4,1),7:(1,1,1,1),8:(1,0.5,0.5,1),9:(1.0,0.2,0.8,1)}
+
+
+index_to_color = {k:(v[2],v[1],v[0],v[3]) for k,v in index_to_color.items()}
+
+
+name_to_color = {index_to_name[k]:v for k, v in index_to_color.items()}
+name_to_index = {v: k for k, v in index_to_name.items()}
+
+
+
+
+
+IN_FOLDER = "C:\\Users\\VirtualReality\\Desktop\\bricked\\model\\processed_data\\"
+OUT_FOLDER = "C:\\Users\\VirtualReality\\Desktop\\bricked\\model\\color_processed_data\\"
 def __get_color_name__(h,s,v):
     h = int(h)
     h = h*2
@@ -42,115 +57,92 @@ def __get_color_name__(h,s,v):
     else:
         return "magenta"
 
+def center_dist_calc(bbox,i,j):
+    _,x1,y1,x2,y2 = bbox
 
+
+    cx = x1+(x2-x1)/2
+    cy = y1+(y2-y1)/2
+
+
+    return np.linalg.norm(np.array([cx-i,cy-j]))
+    
 def load_entrypoint(zipList):
 
     for (img,label) in zipList:
         yield cv2.imread(img),read_file(label),img,label
 
-train_img_paths = glob.glob("datasets/brick_separate/images/train/*.jpg",recursive=True)
-val_img_paths = glob.glob("datasets/brick_separate/images/val/*.jpg",recursive=True)
-train_label_paths = glob.glob("datasets/brick_separate/labels/train/*.txt",recursive=True)
-val_label_paths = glob.glob("datasets/brick_separate/labels/val/*.txt",recursive=True)
+def __on_click__(event,x,y,flags,param):
+    global bboxes,scale_factor,annotation_class
+    if event == cv2.EVENT_LBUTTONDOWN:
+        i = int(x*scale_factor)
+        j = int(y*scale_factor)
+        
 
+        sorted([bbox for bbox in bboxes if bbox[1] < i and bbox[2] < j and bbox[3] > i and bbox[4] > j],key = lambda bbox: center_dist_calc(bbox,i,j))[0][0] = index_to_name[annotation_class]
 
+        
 
-train_paths = list(zip(train_img_paths,train_label_paths))
+train_img_paths = glob.glob(OUT_FOLDER + "*.jpg",recursive=True)
+train_label_paths = glob.glob(OUT_FOLDER + "*.txt",recursive=True)
 
-for (img,labels,img_path,label_path) in load_entrypoint(train_paths):
+train_paths = list(zip(train_img_paths,train_label_paths))[510:]
 
-    hsv_frame = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+for img,label,imgpath,labelpath in load_entrypoint(train_paths):
 
-    bricks_box = []
-
-    for label in labels:
-        label = label.replace("\n","").split(" ")
-        x = float(label[1])*img.shape[1]
-        y = float(label[2])*img.shape[0]
-        w = float(label[3])*img.shape[1]
-        h = float(label[4])*img.shape[0]
-        bricks_box.append([x,y,w,h])
-
-
-    new_labels = []
-
-    for box in bricks_box:
-        [x, y, w, h] = box
+    print(imgpath)
+    bboxes = []
+    org_img = img.copy()
+    for oneLabel in label:
+        labelParts = oneLabel.replace("\n","").split(" ")
+        name = index_to_name[int(labelParts[0])]
+        x = float(labelParts[1])*img.shape[1]
+        y = float(labelParts[2])*img.shape[0]
+        w = float(labelParts[3])*img.shape[1]
+        h = float(labelParts[4])*img.shape[0]
         x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
+        bboxes.append([name,x1,y1,x2,y2])
+    cv2.namedWindow('image_display')
 
-        x1_new = max(0, int(x - w * 0.05))
-        y1_new = max(0, int(y - h * 0.05))
-        x2_new = min(img.shape[1], int(x + w * 0.05))
-        y2_new = min(img.shape[0], int(y + h * 0.05))
+    cv2.setMouseCallback('image_display', __on_click__)
+    while True:
+        img = org_img.copy()
+        
 
-        # Ensure the region is valid
-        if x1_new >= x2_new or y1_new >= y2_new:
-            continue
+        for [name,x1,y1,x2,y2] in bboxes:
+            test = tuple([int(col) for col in (np.array(name_to_color[name])[:3]*255).astype(np.uint8)]) # Ty cv2 i hate this
+            cv2.rectangle(img,(x1,y1),(x2,y2),color=test,thickness=10)
+        
 
-        # get average hsv value of the bounding box
-        hsv = hsv_frame[y1_new:y2_new, x1_new:x2_new]
-        hsv = np.median(hsv, axis=(0,1))
-        hh, s, v = hsv
-        detected_color_name = __get_color_name__(hh, s, v)
+        scale_factor = max((min(img.shape[:2]) / 1024.0),1)
+        image_shape = (int(img.shape[1]/scale_factor), int(img.shape[0]/scale_factor))
+        scaled_image = cv2.resize(img, image_shape)
+        cv2.imshow("image_display", scaled_image)
+        
+        key_press = cv2.waitKey(1) & 0xff
 
-        if detected_color_name != "magenta":
-            new_labels.append(f"{name_to_index[detected_color_name]} {x/img.shape[1]} {y/img.shape[0]} {w/img.shape[1]} {h/img.shape[0]}")
+        if key_press == ord("q"):
+            exit()
 
+        if key_press == ord("d"):
+            break
 
-    # print(label_path.split("\\"))
-
-    backslash = "\\"
-
-    cv2.imwrite(f"datasets/brick_color_separate/images/train/{img_path.split(backslash)[1]}",img)
-    write_file(f"datasets/brick_color_separate/labels/train/{label_path.split(backslash)[1]}","\n".join(new_labels))
-
-val_paths = list(zip(val_img_paths,val_label_paths))
-
-for (img,labels,img_path,label_path) in load_entrypoint(val_paths):
-
-    hsv_frame = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-    bricks_box = []
-
-    for label in labels:
-        label = label.replace("\n","").split(" ")
-        x = float(label[1])*img.shape[1]
-        y = float(label[2])*img.shape[0]
-        w = float(label[3])*img.shape[1]
-        h = float(label[4])*img.shape[0]
-        bricks_box.append([x,y,w,h])
+        if key_press == ord("1"):
+            annotation_class = 0
+        if key_press == ord("2"):
+            annotation_class = 1
+        if key_press == ord("3"):
+            annotation_class = 2
+        if key_press == ord("4"):
+            annotation_class = 3
+    label_texts = []
+    for [name,x1,y1,x2,y2] in bboxes:
+        w = x2-x1
+        h = y2-y1
+        idx = name_to_index[name]
+        label_texts.append(f"{idx} {(x1+w/2)/img.shape[1]} {(y1+h/2)/img.shape[0]} {(w)/img.shape[1]} {(h)/img.shape[0]}")
 
 
-    new_labels = []
+    write_file(labelpath,"\n".join(label_texts))
 
-    for box in bricks_box:
-        [x, y, w, h] = box
-        x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
-
-        x1_new = max(0, int(x - w * 0.05))
-        y1_new = max(0, int(y - h * 0.05))
-        x2_new = min(img.shape[1], int(x + w * 0.05))
-        y2_new = min(img.shape[0], int(y + h * 0.05))
-
-        # Ensure the region is valid
-        if x1_new >= x2_new or y1_new >= y2_new:
-            continue
-
-        # get average hsv value of the bounding box
-        hsv = hsv_frame[y1_new:y2_new, x1_new:x2_new]
-        hsv = np.median(hsv, axis=(0,1))
-        hh, s, v = hsv
-        detected_color_name = __get_color_name__(hh, s, v)
-
-        if detected_color_name != "magenta":
-            new_labels.append(f"{name_to_index[detected_color_name]} {x/img.shape[1]} {y/img.shape[0]} {w/img.shape[1]} {h/img.shape[0]}")
-
-
-    # print(label_path.split("\\"))
-
-    backslash = "\\"
-
-    cv2.imwrite(f"datasets/brick_color_separate/images/val/{img_path.split(backslash)[1]}",img)
-    write_file(f"datasets/brick_color_separate/labels/val/{label_path.split(backslash)[1]}","\n".join(new_labels))
-
-
+            

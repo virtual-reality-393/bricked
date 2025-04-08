@@ -34,7 +34,13 @@ class Annotator:
         self.model_to_use = model_to_use
         self.detector_model = BrickDetector(is_video=False)
 
+        self.label_idx_to_name = {0:"brick",4:"big penguin",5:"small penguin",6:"lion",7:"sheep",8:"pig",9:"human"}
+
+        self.label_idx_to_color = {0:(0.8,0,0,1),4:(0.4,0.4,1,1),5:(0.4,1,0.4,1),6:(1,1,0.4,1),7:(1,1,1,1),8:(1,0.5,0.5,1),9:(1.0,0.2,0.8,1)}
+
         self.__mask_generator__ = None
+
+        self.annotation_class = 0
 
         self.rects = {}
         self.extra_anno = {}
@@ -77,12 +83,12 @@ class Annotator:
                 self.rects[self.curr_idx] = []
 
             if event == cv2.EVENT_LBUTTONDOWN:
-                if rect not in self.rects[self.curr_idx]:
-                    self.rects[self.curr_idx].append(rect)
+                if (self.annotation_class,*rect) not in self.rects[self.curr_idx]:
+                    self.rects[self.curr_idx].append((self.annotation_class,*rect))
 
             if event == cv2.EVENT_RBUTTONDOWN:
-                if rect in self.rects[self.curr_idx]:
-                    self.rects[self.curr_idx].remove(rect)
+                if (self.annotation_class,*rect) in self.rects[self.curr_idx]:
+                    self.rects[self.curr_idx].remove((self.annotation_class,*rect))
 
             if params[0]:
                 self.__update_image__()
@@ -111,7 +117,7 @@ class Annotator:
 
             x2,y2 = self.bbox_start
 
-            self.rects[self.curr_idx].append([min_x,min_y,max_x-min_x,max_y-min_y])
+            self.rects[self.curr_idx].append([self.annotation_class,min_x,min_y,max_x-min_x,max_y-min_y])
 
         if self.bbox_active:
             self.select_bbox = [self.bbox_start,(x,y)]
@@ -119,8 +125,8 @@ class Annotator:
     def __update_image__(self):
         overlay = np.zeros(self.curr_image["segment_img"].shape)
 
-        for (x,y,w,h) in self.rects[self.curr_idx]:
-            cv2.rectangle(overlay,(x,y),(x+w,y+h),(1,0,0,1),-1)
+        for (label,x,y,w,h) in self.rects[self.curr_idx]:
+            cv2.rectangle(overlay,(x,y),(x+w,y+h),self.label_idx_to_color[label],-1)
 
         if self.bbox_active:
             (x1,y1),(x2,y2) = self.select_bbox
@@ -139,8 +145,8 @@ class Annotator:
 
         self.curr_image["display_img"] = cv2.addWeighted(self.curr_image["segment_img"],1,overlay,0.5,0)
 
-        for (x,y,w,h) in self.rects[self.curr_idx]:
-            cv2.rectangle(self.curr_image["display_img"],(x,y),(x+w,y+h),(0.8,0,0,1),2)
+        for (label,x,y,w,h) in self.rects[self.curr_idx]:
+            cv2.rectangle(self.curr_image["display_img"],(x,y),(x+w,y+h),self.label_idx_to_color[label],2)
 
         if self.bbox_active:
             (x1,y1),(x2,y2) = self.select_bbox
@@ -160,14 +166,20 @@ class Annotator:
 
 
         cv2.putText(self.curr_image["display_img"],str(self.curr_idx) + "/" + str(len(self.image_paths)),(0,50),cv2.FONT_HERSHEY_SIMPLEX,2,(1,0,0),2,cv2.LINE_AA)
+        cv2.putText(self.curr_image["display_img"],self.label_idx_to_name[self.annotation_class],(0,100),cv2.FONT_HERSHEY_SIMPLEX,2,(1,0,0),2,cv2.LINE_AA)
             
 
 
     def __pre_annotate__(self):
         bboxes = self.detector_model.detect(cv2.cvtColor(self.curr_image["org_img"],cv2.COLOR_RGB2BGR),conf = 0.4,model_to_use = self.model_to_use)
+        pre_class = self.annotation_class
+
+        self.annotation_class = 0
         for box in bboxes:
             [x,y,w,h] = box.xywh[0]
             self.__on_click__(1,int((x)/self.curr_image["factor"]),int((y)/self.curr_image["factor"]),None,[False])
+
+        self.annotation_class = pre_class
 
 
 
@@ -339,7 +351,23 @@ class Annotator:
 
                 if key_press == ord("d"):
                     idx += 1
+                    self.annotation_class = 0
                     break
+
+                if key_press == ord("0"):
+                    self.annotation_class = 0
+                if key_press == ord("1"):
+                    self.annotation_class = 4
+                if key_press == ord("2"):
+                    self.annotation_class = 5
+                if key_press == ord("3"):
+                    self.annotation_class = 6
+                if key_press == ord("4"):
+                    self.annotation_class = 7
+                if key_press == ord("5"):
+                    self.annotation_class = 8
+                if key_press == ord("6"):
+                    self.annotation_class = 9
 
                 if key_press != 255:
                     print(chr(key_press))
@@ -353,8 +381,8 @@ class Annotator:
 
             labels_string = ""
 
-            for x,y,w,h in self.rects[self.curr_idx]:
-                labels_string += f"0 {(x+w/2)/image.shape[1]} {(y+h/2)/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
+            for label,x,y,w,h in self.rects[self.curr_idx]:
+                labels_string += f"{label} {(x+w/2)/image.shape[1]} {(y+h/2)/image.shape[0]} {w/image.shape[1]} {h/image.shape[0]}\n"
 
             if len(self.rects[self.curr_idx]) > 0 or save_override:
                 if save:
@@ -427,7 +455,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(e.with_traceback())
 
-    create_splits()
+    create_splits(in_path="color_processed_data/",out_path="datasets/brick_figures/")
 
 
 

@@ -396,7 +396,7 @@ model/models/
 *.png
 *.gif
 *.mp4
-
+*.txt
 
 # Ultralytics
 runs/
@@ -406,3 +406,4 @@ unprocessed_data/
 processed_data/
 needs_annotation/
 detect/
+unpacked_dataset/
