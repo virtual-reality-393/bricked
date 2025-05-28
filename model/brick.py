@@ -4,10 +4,12 @@ from ultralytics import YOLO
 from ultralytics.engine.results import Boxes
 
 class BrickDetector:
-    def __init__(self,single_model : str = "models/run43_stacked.pt", multi_model : str = "models/run42_separate.pt", is_video : bool = True):
+    def __init__(self,single_model : str = "models/run43_stacked.pt", multi_model : str = "models/run63_figures.onnx", is_video : bool = True):
         self.single_model = YOLO(single_model)
         self.multi_model = YOLO(multi_model)
         self.is_video = is_video
+
+        print(self.multi_model.cfg)
         
 
     

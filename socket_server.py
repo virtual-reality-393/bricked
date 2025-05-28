@@ -11,12 +11,12 @@ from PIL import Image
 from io import BytesIO
 import base64
 import time
+import glob
 gameHelper = GameHelper()
 # monitor = window.left+25, window.top+100, window.left + window.width-25, window.top + window.height-75
 
 frame_num = 0
-
-saved_frame_num = 0
+saved_frame_num = len(glob.glob("../headsetimgs/*.jpg"))
 accum = 0
 FRAME_ACCUM = 2
 sct = mss()
@@ -52,7 +52,8 @@ def handle_message(message):
         saved_frame_num += 1
         frame_name = f"C:\\Users\\VirtualReality\\Desktop\\bricked\\headsetimgs\\{saved_frame_num}.jpg"
 
-        print(cv2.imwrite(frame_name,frame))
+        print("Saving",frame_name)
+        cv2.imwrite(frame_name,frame)
         
 
     frame_num+=1

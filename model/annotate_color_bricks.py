@@ -47,20 +47,17 @@ def __get_color_name__(h,s,v):
 
 
 def load_entrypoint(zipList):
-    res = []
     for (img,label) in tqdm(zipList):
-        res.append((cv2.imread(img),read_file(label),img,label))
+        yield (cv2.imread(img),read_file(label),img,label)
 
-    return res
 
 train_img_paths = glob.glob(IN_FOLDER + "*.jpg",recursive=True)
 train_label_paths = glob.glob(IN_FOLDER + "*.txt",recursive=True)
 
-print(train_img_paths)
 
 train_paths = list(zip(train_img_paths,train_label_paths))
 
-for (img,labels,img_path,label_path) in tqdm(load_entrypoint(train_paths)):
+for (img,labels,img_path,label_path) in load_entrypoint(train_paths):
 
     hsv_frame = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -80,31 +77,8 @@ for (img,labels,img_path,label_path) in tqdm(load_entrypoint(train_paths)):
     for box in bricks_box:
         [class_label,x, y, w, h] = box
 
-        if class_label != '0':
-            new_labels.append(f"{class_label} {x/img.shape[1]} {y/img.shape[0]} {w/img.shape[1]} {h/img.shape[0]}")
-            continue
+        new_labels.append(f"{class_label.split('.0')[0]} {x/img.shape[1]} {y/img.shape[0]} {w/img.shape[1]} {h/img.shape[0]}")
         
-        x1, y1, x2, y2 = int(x-w/2), int(y-h/2), int(x + w/2), int(y + h/2)
-
-        x1_new = max(0, int(x - w * 0.05))
-        y1_new = max(0, int(y - h * 0.05))
-        x2_new = min(img.shape[1], int(x + w * 0.05))
-        y2_new = min(img.shape[0], int(y + h * 0.05))
-
-        # Ensure the region is valid
-        if x1_new >= x2_new or y1_new >= y2_new:
-            continue
-
-        # get average hsv value of the bounding box
-        hsv = hsv_frame[y1_new:y2_new, x1_new:x2_new]
-        hsv = np.median(hsv, axis=(0,1))
-        hh, s, v = hsv
-        detected_color_name = __get_color_name__(hh, s, v)
-
-        if detected_color_name != "magenta":
-            new_labels.append(f"{name_to_index[detected_color_name]} {x/img.shape[1]} {y/img.shape[0]} {w/img.shape[1]} {h/img.shape[0]}")
-        else:
-            new_labels.append(f"0 {x/img.shape[1]} {y/img.shape[0]} {w/img.shape[1]} {h/img.shape[0]}")
 
 
     # print(label_path.split("\\"))

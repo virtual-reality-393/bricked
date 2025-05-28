@@ -2,15 +2,17 @@ from brick import *
 from tqdm import tqdm
 import os
 
+
+
 os.environ['YOLO_VERBOSE'] = 'False'
 
 def predict_video(video_path : str, show_vid = True):
 
 
-    detector = BrickDetector(multi_model=r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train59\weights\best.pt")
+    detector = BrickDetector(multi_model=r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train63\weights\best.pt",is_video=False)
     video = cv2.VideoCapture(filename=video_path)
 
-    out = cv2.VideoWriter('predicted.mp4', -1, 25, (1552//3,2064//3))
+    out = cv2.VideoWriter('predicted.mp4', -1, 3, (1552//3,2064//3))
 
     frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -35,5 +37,5 @@ def predict_video(video_path : str, show_vid = True):
 
     out.release()
 
-vid_name = "test_video_figures"
+vid_name = "output"
 predict_video(rf"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\raw_finished\{vid_name}.mp4",show_vid=True)
