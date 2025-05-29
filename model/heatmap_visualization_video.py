@@ -6,6 +6,7 @@ from scipy.ndimage import gaussian_filter
 import cv2
 from tqdm import tqdm
 import open3d as o3d
+from scipy.spatial.transform import Rotation as R
 
 def read_lines_from_file(input_file):
     with open(input_file, "r") as f:
@@ -97,17 +98,36 @@ for line in lines:
         y = 1-float(coords[1])
         tableSize = (x,y)
 
+
+    if identifier == "head":
+        elements = line[match.end():].split(";")
+        if "FOCAL" in line:
+            fx,fy = elements[0].split(":")[1][1:-1].split(",")
+
+            fx = float(fx)
+            fy = float(fy)
+
+            cx,cy = elements[1].split(":")[1][1:-1].split(",")
+
+            cx = float(cx)
+            cy = float(cy)
+        else:
+            frame_data[frame_num][identifier] = {}
+            x,y,z = elements[0].split(":")[1][1:-1].split(",")
+            frame_data[frame_num][identifier]["POSITION"] = (float(x),float(y),-float(z))
+
+            x,y,z,w = elements[1].split(":")[1][1:-1].split(",")
+            frame_data[frame_num][identifier]["ROTATION"] = (float(w),float(x),float(y),float(z))
+        
+
+
     if identifier == "StackGeneration":
         if identifier not in frame_data[frame_num]:
             frame_data[frame_num][identifier] = {}
-
-        
-
         
         elements = line[match.end():].split(";")
 
         event_type = elements[0]
-
 
         if event_type == "GENERATE":
             if "POINTS" not in frame_data[frame_num][identifier]:
@@ -181,10 +201,10 @@ rh_heatmap = np.zeros(heatmap_size)
 lh_heatmap = np.zeros(heatmap_size)
 
 vis = o3d.visualization.Visualizer()
-vis.create_window(window_name='Point Cloud with Lines')
+vis.create_window(window_name='Point Cloud with Lines',width=int(cx)*2, height=int(cy)*2)
 
-view_ctl = vis.get_view_control()
-
+intrinsics = o3d.camera.PinholeCameraIntrinsic()
+intrinsics.set_intrinsics(width=int(cx)*2, height=int(cy)*2, fx=fx/2, fy=fy/2, cx=int(cx), cy=int(cy))
 
 render_option = vis.get_render_option()
 render_option.point_size = 15  # Bigger point size
@@ -200,8 +220,16 @@ pcd.colors = o3d.utility.Vector3dVector(np.tile(np.array([[1.0, 0.5, 0.0]]), (48
 line_set.lines = o3d.utility.Vector2iVector(HAND_BONE_CONNECTIONS)
 line_set.colors = o3d.utility.Vector3dVector(np.tile(np.array([[0.0, 0.5, 1.0]]), (48, 1)) )
 
-for frame_idx in tqdm(range(idx,frame_num)):
+extrinsic = np.eye(4)
+param = o3d.camera.PinholeCameraParameters()
+param.extrinsic = extrinsic
+param.intrinsic = intrinsics
 
+view_ctl = vis.get_view_control()
+view_ctl.convert_from_pinhole_camera_parameters(param, allow_arbitrary=True)
+
+for frame_idx in tqdm(range(idx,frame_num)):
+    
     minVal = max(0,frame_idx-15)
     maxVal = min(len(points),frame_idx)
     
@@ -237,7 +265,20 @@ for frame_idx in tqdm(range(idx,frame_num)):
 
         # Change point size
     
+    if "head" in curr_frame_data:
+        if "POSITION" in curr_frame_data["head"]:
+            rot = R.from_quat(curr_frame_data["head"]["ROTATION"]).as_matrix()
+            pos = np.array(curr_frame_data["head"]["POSITION"])
 
+            pos[1] = pos[1]-0.1
+
+            extrinsic[:3,:3] = rot.T
+            extrinsic[:3,3] = -rot.T@pos
+
+            param.extrinsic = extrinsic
+            param.intrinsic = intrinsics
+            view_ctl.convert_from_pinhole_camera_parameters(param, allow_arbitrary=True)
+            
       
 
     if "leftHand" in curr_frame_data:
