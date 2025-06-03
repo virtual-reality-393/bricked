@@ -32,7 +32,7 @@ class Annotator:
         self.need_anno = need_anno
         self.seg_model = seg_model
         self.model_to_use = model_to_use
-        self.detector_model = BrickDetector(is_video=False,multi_model="models/run59_figures.pt")
+        self.detector_model = BrickDetector(is_video=False,multi_model="models/run64_stacks.pt")
 
         self.label_idx_to_name = {0:"red",1:"green",2:"blue",3:"yellow",4:"big penguin",5:"small penguin",6:"lion",7:"sheep",8:"pig",9:"human"}
 
@@ -209,7 +209,8 @@ class Annotator:
                 contours = [cv2.approxPolyDP(contour, epsilon=0.01, closed=True) for contour in contours]
                 cv2.drawContours(segment_image, contours, -1, (0, 0, 1, 0.4), thickness=1)
 
-        data = {"org_img": org,"segment_img" : segment_image, "mask" : segment_mask,"factor":scalefactor}
+        data = {"org_img": org,"segment_img" : segment_image, "mask" : segment_mask,"factor":scalefactor,"name":file_name}
+
         np.savez_compressed(file_name,data)
         
 
@@ -274,7 +275,7 @@ class Annotator:
 
             
 
-            scale_factor = max((min(image.shape[:2]) / 1024.0),1)
+            scale_factor = max((min(image.shape[:2]) / 512.0),1)
 
 
             image_shape = (int(image.shape[1]/scale_factor), int(image.shape[0]/scale_factor))
@@ -286,18 +287,18 @@ class Annotator:
 
             file_name = file_name.zfill(7)
 
-            self.__generate_visual_segmentation__(masks,self.need_anno + file_name,scaled_image,image,scale_factor)
+            self.__generate_visual_segmentation__(masks,self.need_anno + img_path.split("\\")[-1][:-4],scaled_image,image,scale_factor)
 
-            os.remove(img_path)
 
             prev_img_format = image.shape
-    
+
 
     def annotate(self):
         self.image_paths = sorted(glob.glob(self.need_anno + "*.npz"))
         idx = 0
         save = True
         save_override = False
+
 
         cv2.namedWindow("image_display")
         cv2.namedWindow("org_img_display")
@@ -457,11 +458,12 @@ if __name__ == "__main__":
     anno = Annotator(model_to_use=1)
 
     anno.process_video()
-    anno.process_raw_images()
+    # anno.process_raw_images()
 
     try:
+        pass
         anno.annotate()
-        create_splits(in_path="color_processed_data/",out_path="datasets/brick_figures/")
+        # create_splits(in_path="color_processed_data/",out_path="datasets/brick_figures/")
     except Exception as e:
         print(e)
 

@@ -2,10 +2,10 @@ from brick import *
 import glob
 import matplotlib.pyplot as plt
 
-DATA_PATH = "datasets/brick_separate/images/train/"
 
-image_paths = sorted(glob.glob("datasets/brick_color_separate/images/train/" + "*.jpg"))
-labels = sorted(glob.glob("datasets/brick_color_separate/labels/train/" + "*.txt"))
+
+image_paths = sorted(glob.glob(r"C:\Users\VirtualReality\Desktop\bricked\model\processed_data\\" + "*.jpg"))
+labels = sorted(glob.glob(r"C:\Users\VirtualReality\Desktop\bricked\model\processed_data\\" + "*.txt"))
 
 
 name_to_index = {"red": 0, "green": 1, "blue": 2, "yellow": 3}

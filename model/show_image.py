@@ -10,8 +10,8 @@ from brick import *
 
 
 frame_num = 0
-imgs = (glob.glob("color_processed_data/*.jpg"))[-1:]
-labels = (glob.glob("color_processed_data/*.txt"))[-1:]
+imgs = [r"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\0001043.jpg"]
+labels = [r"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\0001043.jpg"]
 
 
 
@@ -34,11 +34,11 @@ def draw_box_color(image, xywh,color,cls,conf):
 
     cv2.putText(image, f"{label_idx_to_name[cls.item()]}: {conf.item():.3f}",(int(x1),int(y1)),cv2.FONT_HERSHEY_SIMPLEX,1,color,2)
 
-detector = BrickDetector(is_video=False)
+detector = BrickDetector(is_video=False,multi_model="models/run64_stacks.onnx")
 label_idx_to_color = {0:(0,0,1,1),1:(0,1,0,1),2:(1,0,0,1),3:(0,1,1,1),4:(0.4,0.4,1,1),5:(0.4,0.4,0.4,1),6:(0,0.5,1,1),7:(1,1,1,1),8:(0.5,0.5,1,1),9:(1.0,0.2,0.8,1)}
 for img_path,label_path in img_labels:
-    image = cv2.imread("test.png")
-    labels = read_file(label_path) 
+    image = cv2.imread(r"C:\Users\VirtualReality\Desktop\bricked\model\unprocessed_data\0001043.jpg")
+    # labels = read_file(label_path) 
 
     bboxes = detector.detect(image,model_to_use=1)
 

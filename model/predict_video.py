@@ -9,7 +9,7 @@ os.environ['YOLO_VERBOSE'] = 'False'
 def predict_video(video_path : str, show_vid = True):
 
 
-    detector = BrickDetector(multi_model=r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train63\weights\best.pt",is_video=False)
+    detector = BrickDetector(multi_model=r"C:\Users\VirtualReality\Desktop\bricked\model\runs\detect\train64\weights\best.pt",is_video=False)
     video = cv2.VideoCapture(filename=video_path)
 
     out = cv2.VideoWriter('predicted.mp4', -1, 3, (1552//3,2064//3))

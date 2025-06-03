@@ -1,7 +1,7 @@
 from pathlib import Path
 import shutil
 
-DATASET_PATH = r"C:\Users\VirtualReality\Desktop\bricked\model\datasets\brick_separate"
+DATASET_PATH = r"C:\Users\VirtualReality\Desktop\bricked\model\datasets\brick_figures"
 
 
 results = list(Path(DATASET_PATH).rglob("*.[tTjJ][xXpP][tTgG]"))

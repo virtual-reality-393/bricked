@@ -19,7 +19,7 @@ def follow_camera(view_ctl, target_center, offset):
     view_ctl.look_at(target_center, eye, up)
 
 camera_offset = np.array([0, 0, 2]) 
-
+index_to_color = {0:(1,0,0,1),1:(0,1,0,1),2:(0,0,1,1),3:(1,1,0,1),4:(0.4,0.4,1,1),5:(0.4,1,0.4,1),6:(1,1,0.4,1),7:(1,1,1,1),8:(1,0.5,0.5,1),9:(1.0,0.2,0.8,1)}
 HAND_BONE_CONNECTIONS = [[0,1],
                          [1,2],[2,3],[3,4],[4,5],[5,19],
                          [1,6],[6,7],[7,8],[8,20],
@@ -92,11 +92,18 @@ for line in lines:
             frame_data[frame_num][identifier]["BONES"].append((float(x),float(y),-float(z)))
 
     if identifier == "tablePlane":
-        coords = line[match.end():].split(",")
+        elements = line[match.end():].split(";")
+        coords = elements[0].split(":")[1].split(",")
 
         x = float(coords[0])
         y = 1-float(coords[1])
         tableSize = (x,y)
+
+        tablePosition = np.array([float(e) for e in elements[1].split(":")[1][1:-1].split(",")])
+
+        tablePosition[2] *= -1
+
+        tableRotation = np.array([float(e) for e in elements[2].split(":")[1][1:-1].split(",")])
 
 
     if identifier == "head":
@@ -132,12 +139,19 @@ for line in lines:
         if event_type == "GENERATE":
             if "POINTS" not in frame_data[frame_num][identifier]:
                 frame_data[frame_num][identifier]["POINTS"] = []
+            normCoords = elements[2][1:-1].split(",")
 
-            coords = elements[2][1:-1].split(",")
+            nx = float(normCoords[0])
+            ny = 1-float(normCoords[1])
 
-            x = float(coords[0])
-            y = 1-float(coords[1])
-            frame_data[frame_num][identifier]["POINTS"].append((x,y,0))
+            worldCoords = elements[3][1:-1].split(",")
+
+            wx = float(worldCoords[0])
+            wy = float(worldCoords[1])
+            wz = -float(worldCoords[2])
+            frame_data[frame_num][identifier]["POINTS"].append([(nx,ny,0),(wx,wy,wz),elements[4].split(",")])
+
+           
 
         if event_type == "COMPLETED":
             if "COMPLETED" not in frame_data[frame_num][identifier]:
@@ -203,8 +217,16 @@ lh_heatmap = np.zeros(heatmap_size)
 vis = o3d.visualization.Visualizer()
 vis.create_window(window_name='Point Cloud with Lines',width=int(cx)*2, height=int(cy)*2)
 
+cube = o3d.geometry.TriangleMesh.create_box(width=tableSize[0], height=0.02, depth=tableSize[1])
+
+cube.compute_vertex_normals()
+
+cube.translate(tablePosition - np.array([tableSize[0]/2,0.02,tableSize[1]/2]))
+
+vis.add_geometry(cube)
+
 intrinsics = o3d.camera.PinholeCameraIntrinsic()
-intrinsics.set_intrinsics(width=int(cx)*2, height=int(cy)*2, fx=fx/2, fy=fy/2, cx=int(cx), cy=int(cy))
+intrinsics.set_intrinsics(width=int(cx)*2, height=int(cy)*2, fx=fx/4, fy=fy/4, cx=int(cx), cy=int(cy))
 
 render_option = vis.get_render_option()
 render_option.point_size = 15  # Bigger point size
@@ -215,10 +237,17 @@ first = True
 line_set = o3d.geometry.LineSet()
 pcd = o3d.geometry.PointCloud()
 
-pcd.colors = o3d.utility.Vector3dVector(np.tile(np.array([[1.0, 0.5, 0.0]]), (48, 1)) )
+
+head_geometry = o3d.geometry.TriangleMesh.create_box(width=0.2, height=0.2, depth=0.2)
+vis.add_geometry(head_geometry)
+
+org_head_geometry = o3d.geometry.TriangleMesh.create_box(width=0.2, height=0.2, depth=0.2)
+
+org_head_geometry.translate(-np.array([0.1,0.1,-0.1]))
+pcd.colors = o3d.utility.Vector3dVector(np.vstack([np.tile(np.array([[1.0, 0.5, 0.0]]), (24, 1)),np.tile(np.array([[0.0, 0.5, 1.0]]), (24, 1)) ]))
 
 line_set.lines = o3d.utility.Vector2iVector(HAND_BONE_CONNECTIONS)
-line_set.colors = o3d.utility.Vector3dVector(np.tile(np.array([[0.0, 0.5, 1.0]]), (48, 1)) )
+line_set.colors = o3d.utility.Vector3dVector(np.tile(np.array([[1.0, 0.0, 1.0]]), (48, 1)) )
 
 extrinsic = np.eye(4)
 param = o3d.camera.PinholeCameraParameters()
@@ -228,13 +257,17 @@ param.intrinsic = intrinsics
 view_ctl = vis.get_view_control()
 view_ctl.convert_from_pinhole_camera_parameters(param, allow_arbitrary=True)
 
+
+stack_geometry = []
+
 for frame_idx in tqdm(range(idx,frame_num)):
     
     minVal = max(0,frame_idx-15)
     maxVal = min(len(points),frame_idx)
     
     curr_frame_data = frame_data[frame_idx]
-
+    org_ctr = vis.get_view_control()
+    org_ctr_params = org_ctr.convert_to_pinhole_camera_parameters()
 
     if "rightHand" in curr_frame_data:
 
@@ -270,14 +303,31 @@ for frame_idx in tqdm(range(idx,frame_num)):
             rot = R.from_quat(curr_frame_data["head"]["ROTATION"]).as_matrix()
             pos = np.array(curr_frame_data["head"]["POSITION"])
 
-            pos[1] = pos[1]-0.1
+            pos[1] = pos[1]
 
-            extrinsic[:3,:3] = rot.T
+            R_correction = o3d.geometry.get_rotation_matrix_from_axis_angle([0, np.pi / 2, 0])
+
+            extrinsic[:3,:3] = (rot@R_correction).T
             extrinsic[:3,3] = -rot.T@pos
 
-            param.extrinsic = extrinsic
-            param.intrinsic = intrinsics
-            view_ctl.convert_from_pinhole_camera_parameters(param, allow_arbitrary=True)
+            # head_geometry.translate(-head_geometry.get_center())
+
+            # head_geometry.translate(pos[1])
+
+
+            head_geometry.vertices = o3d.utility.Vector3dVector(np.asarray(org_head_geometry.vertices))
+            head_geometry.triangles = o3d.utility.Vector3iVector(np.asarray(org_head_geometry.triangles))
+            head_geometry.compute_vertex_normals()
+
+
+            head_geometry.transform(extrinsic)
+
+
+            vis.update_geometry(head_geometry)
+
+            # param.extrinsic = extrinsic
+            # param.intrinsic = intrinsics
+            # view_ctl.convert_from_pinhole_camera_parameters(param, allow_arbitrary=True)
             
       
 
@@ -296,14 +346,39 @@ for frame_idx in tqdm(range(idx,frame_num)):
 
     if "StackGeneration" in curr_frame_data:
         if "POINTS" in curr_frame_data["StackGeneration"]:
-            stack_points = np.array(curr_frame_data["StackGeneration"]["POINTS"])
+            stack_points = np.array([e[0] for e in curr_frame_data["StackGeneration"]["POINTS"]])
             stack_points[:,0]*=heatmap_size[1]
             stack_points[:,1]*=heatmap_size[0]
+
+
+            for i in range(len(curr_frame_data["StackGeneration"]["POINTS"])):
+                _,wp,names = curr_frame_data["StackGeneration"]["POINTS"][i]
+
+                for j,name in enumerate(names):
+
+                    cube = o3d.geometry.TriangleMesh.create_box(width=0.05, height=0.02, depth=0.02)
+
+                    cube.paint_uniform_color(index_to_color[int(nameToId[name])][:-1])
+
+                    cube.compute_vertex_normals()
+                    cube.translate(wp + np.array([0,0.02*(j),0]))
+
+                    vis.add_geometry(cube)
+
+                    stack_geometry.append(cube)
+
+
+
 
         if "COMPLETED" in curr_frame_data["StackGeneration"]:
             for val in curr_frame_data["StackGeneration"]["COMPLETED"]:
                 stack_points[val,2] = 1
 
+        if "FINISHED" in curr_frame_data["StackGeneration"]:
+            for geom in stack_geometry:
+                vis.remove_geometry(geom)
+            
+            stack_geometry = []
 
     rh_np = np.array(right_hand_points)
     lh_np = np.array(left_hand_points)
@@ -364,6 +439,7 @@ for frame_idx in tqdm(range(idx,frame_num)):
     else:
         vis.update_geometry(line_set)
         vis.update_geometry(pcd)
+        org_ctr.convert_from_pinhole_camera_parameters(org_ctr_params)
         vis.poll_events()
         vis.update_renderer()
 
