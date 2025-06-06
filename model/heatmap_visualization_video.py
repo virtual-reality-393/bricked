@@ -48,7 +48,7 @@ match = re.match(r"\[.*\]",lines[-2])
 
 elements = match.group().split("|")
 
-frameCount = int(elements[1].replace("]",""))
+frameCount = int(elements[2].replace("]",""))
 
 frame_data = [None]*(frameCount+1)
 
@@ -56,20 +56,39 @@ for line in lines:
     match = re.match(r"\[.*\]",line)
     
     if not match:
+        print(f"Invalid line: {line}")
         continue
 
-    elements = match.group().split("|")
+    header_elements = match.group().split("|")
 
-    if len(elements) < 2:
+    if len(elements) < 3:
+        print(f"Invalid header: {line}")
         continue
 
-    identifier = elements[0].replace("[","").replace("]","")
+    time = int(header_elements[0][1:])
 
-    frame_num = int(elements[1].replace("]",""))
+    identifier = header_elements[1]
+
+    frame_num = int(header_elements[2][:-1])
 
     if frame_data[frame_num] is None:
         frame_data[frame_num] = {}
 
+
+
+    input_data = line[match.end():].split(";")
+
+
+    for data in input_data:
+        try:
+            type_info,value = data.split(":")
+
+            type, info = type_info.split("_")
+        except:
+            print(line)
+
+
+    continue
     
     if "Hand" in identifier:
         if identifier not in frame_data[frame_num]:
@@ -237,6 +256,13 @@ first = True
 line_set = o3d.geometry.LineSet()
 pcd = o3d.geometry.PointCloud()
 
+hand_cube_size = 0.01
+cubes = []
+cube_colors = np.vstack([np.tile(np.array([[1.0, 0.5, 0.0]]), (24, 1)),np.tile(np.array([[0.0, 0.5, 1.0]]), (24, 1)) ])
+for i in range(48):
+    cubes.append(o3d.geometry.TriangleMesh.create_box(width=hand_cube_size, height=hand_cube_size, depth=hand_cube_size))
+    cubes[i].paint_uniform_color((1,0,0) if i < 24 else (0,0,1))
+    cubes[i].compute_vertex_normals()
 
 head_geometry = o3d.geometry.TriangleMesh.create_box(width=0.2, height=0.2, depth=0.2)
 vis.add_geometry(head_geometry)
@@ -244,7 +270,7 @@ vis.add_geometry(head_geometry)
 org_head_geometry = o3d.geometry.TriangleMesh.create_box(width=0.2, height=0.2, depth=0.2)
 
 org_head_geometry.translate(-np.array([0.1,0.1,-0.1]))
-pcd.colors = o3d.utility.Vector3dVector(np.vstack([np.tile(np.array([[1.0, 0.5, 0.0]]), (24, 1)),np.tile(np.array([[0.0, 0.5, 1.0]]), (24, 1)) ]))
+pcd.colors = o3d.utility.Vector3dVector()
 
 line_set.lines = o3d.utility.Vector2iVector(HAND_BONE_CONNECTIONS)
 line_set.colors = o3d.utility.Vector3dVector(np.tile(np.array([[1.0, 0.0, 1.0]]), (48, 1)) )
@@ -262,8 +288,6 @@ stack_geometry = []
 
 for frame_idx in tqdm(range(idx,frame_num)):
     
-    minVal = max(0,frame_idx-15)
-    maxVal = min(len(points),frame_idx)
     
     curr_frame_data = frame_data[frame_idx]
     org_ctr = vis.get_view_control()
@@ -430,15 +454,19 @@ for frame_idx in tqdm(range(idx,frame_num)):
     bonePoints = np.vstack((np.array(right_hand_bone_points),np.array(left_hand_bone_points)))
 
     line_set.points = o3d.utility.Vector3dVector(bonePoints)
-    pcd.points = o3d.utility.Vector3dVector(bonePoints)
+    for i,cube in enumerate(cubes):
+        cube.translate(-cube.get_center())
+        cube.translate(bonePoints[i])
 
     if first:
         vis.add_geometry(line_set)
-        vis.add_geometry(pcd)
+        for cube in cubes:
+            vis.add_geometry(cube)
         first = False
     else:
         vis.update_geometry(line_set)
-        vis.update_geometry(pcd)
+        for cube in cubes:
+            vis.update_geometry(cube)
         org_ctr.convert_from_pinhole_camera_parameters(org_ctr_params)
         vis.poll_events()
         vis.update_renderer()
