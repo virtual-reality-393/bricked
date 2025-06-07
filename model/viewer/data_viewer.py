@@ -1,16 +1,18 @@
 from kombu import connections
+from sympy import false
 
 from viewer.geometry import *
 import open3d as o3d
 import open3d.visualization as vis
 import numpy as np
 from copy import deepcopy
+import time
 
 class DataViewer:
-    def __init__(self):
+    def __init__(self,total_time):
         self.app: vis.gui.Application = vis.gui.Application.instance
         self.app.initialize()
-        self.window: vis.gui.Window = self.app.create_window("test", 800, 400, 100, 100)
+        self.window: vis.gui.Window = self.app.create_window("test", 800, 450, 100, 100)
 
         self.horizontal = vis.gui.Horiz()
         self.horizontal.frame = vis.gui.Rect(600, 0, 200, 400)
@@ -36,7 +38,7 @@ class DataViewer:
 
         self.settings_view.enable_stacks.set_on_checked(lambda x: self.hide_stacks(x))
 
-        self.video_bar = VideoBar()
+        self.video_bar = VideoBar(total_time)
         self.vert.add_child(self.video_bar.widget)
 
         self.window.add_child(self.horizontal)
@@ -45,14 +47,11 @@ class DataViewer:
     def run_one_tick(self):
         self.scene_view.run_one_tick()
         self.window.post_redraw()
+        self.video_bar.update_time()
         return self.app.run_one_tick()
 
-    def run(self):
-        # self.sceneView.run()
-        self.app.run()
-
-    def quit(self):
-        self.app.quit()
+    def get_time(self):
+        return self.video_bar.get_time()
 
     def hide_hand(self,show,identifier):
         [self.scene_view.show_geometry(f"{identifier}{i}") if show else self.scene_view.hide_geometry(f"{identifier}{i}") for i in range(24)]
@@ -63,6 +62,17 @@ class DataViewer:
         for i in range(8):
             for j in range(8):
                 self.scene_view.show_geometry(f"Stack{i}_{j}") if show else self.scene_view.hide_geometry(f"Stack{i}_{j}")
+
+    def set_time_update_callback(self,callback):
+        self.video_bar.set_time_callback(callback)
+
+
+    def quit(self):
+        self.app.quit()
+
+    def run(self):
+        self.app.run()
+
 
 
 
@@ -169,9 +179,41 @@ class SettingsViewer:
 
 
 class VideoBar:
-    def __init__(self):
+    def __init__(self, total_time):
         self.widget = vis.gui.Horiz()
-        for i in range(3):
-            self.button = vis.gui.Checkbox("Play Video")
-            self.widget.add_child(self.button)
+        self.total_time = total_time
+        self.slider = vis.gui.Slider(vis.gui.Slider.DOUBLE)
+        self.slider.set_limits(0,self.total_time//1000)
+        self.widget.add_child(self.slider)
+        self.prev_time = time.time()
+        self.paused = False
+        self.slider.set_on_value_changed(lambda x : self.set_time(x))
+        self.time_tracking = 0
+        self.callback = None
+
+    def pause(self,state):
+        self.paused = state
+
+    def set_time(self, value):
+        self.pause(True)
+        self.slider.int_value = int(value)
+        self.time_tracking = value*1000
+
+        if self.callback is not None:
+            self.callback(int(value*1000))
+
+    def update_time(self):
+        if not self.paused:
+            self.time_tracking += (time.time()-self.prev_time)*1000
+            self.slider.int_value = int(self.time_tracking//1000)
+            self.prev_time = time.time()
+
+    def set_time_callback(self,callback):
+        self.callback = callback
+
+    def toggle(self):
+        self.paused = not self.paused
+
+    def get_time(self):
+        return int(self.time_tracking)
 

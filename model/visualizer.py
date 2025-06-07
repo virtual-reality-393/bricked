@@ -32,7 +32,7 @@ _,left_hand_data = frame_data.get_data_with_identifier("leftHand",0,True)
 _,table_data = frame_data.get_data_with_identifier("tablePlane",0,True)
 
 
-data_viewer = DataViewer()
+data_viewer = DataViewer(frame_data.time_length)
 viewer = data_viewer.scene_view
 
 r_boxes = [TriangleGeometry.create_box(f"RBONE{_}", 0.01, 0.01, 0.01) for _ in range(24)]
@@ -71,39 +71,44 @@ i=0
 stacks = []
 
 newest_event = -1
+last_event_type = "FINISHED"
 start = time.time()
-curr_time = int((time.time()-start)*1000)
-while frame_data.get_closest_frame_to_timestamp(curr_time) != -1:
-    curr_time = int((time.time()-start)*1000)
-    curr_frame = frame_data.get_closest_frame_to_timestamp(curr_time)
+curr_time = data_viewer.get_time()
+prev_time = 0
+
+def run_timestep(time_value):
+    global stacks, frame_data,newest_event, r_lines, l_lines, last_event_type
+    curr_frame = frame_data.get_closest_frame_to_timestamp(time_value)
+
     _, right_hand_data = frame_data.get_data_with_identifier("rightHand", curr_frame)
     _, left_hand_data = frame_data.get_data_with_identifier("leftHand", curr_frame)
 
-
     frame, stack_datas = frame_data.get_data_with_identifier("stack", curr_frame)
-
-
-    if stack_datas is not None and frame > newest_event:
+    event_type = "GENERATE"
+    if stack_datas is not None and newest_event != frame:
         newest_event = frame
         for stack_data in stack_datas:
             if stack_data["EVENT"] == "GENERATE":
+                if last_event_type == "GENERATE":
+                    for stack in stacks:
+                        viewer.remove_geometry(stack.name)
+
+                    stacks = []
+
                 for i, name in enumerate(stack_data["BRICKS"]):
                     stack_box = TriangleGeometry.create_box(f'Stack{stack_data["STACKNUM"]}_{i}', 0.05, 0.02, 0.02)
                     stack_box.set_color(name_to_color[name])
                     viewer.add_geometry(stack_box)
                     stack_box.set_position(stack_data["POSITION"] + np.array([0, 0.02 * i, 0]))
                     stacks.append(stack_box)
+                event_type = "GENERATE"
 
             if stack_data["EVENT"] == "FINISHED":
                 for stack in stacks:
                     viewer.remove_geometry(stack.name)
-
+                event_type = "FINISHED"
                 stacks = []
-
-
-
-
-
+        last_event_type = event_type
     if right_hand_data is not None:
         for box in r_boxes:
             box.set_position(right_hand_data[box.name[1:]])
@@ -112,6 +117,16 @@ while frame_data.get_closest_frame_to_timestamp(curr_time) != -1:
         for box in l_boxes:
             box.set_position(left_hand_data[box.name[1:]])
 
+    viewer.run_one_tick()
+
+
+
+data_viewer.set_time_update_callback(run_timestep)
+
+while frame_data.get_closest_frame_to_timestamp(curr_time) != -1:
+    curr_time = data_viewer.get_time()
+
+    run_timestep(curr_time)
 
     data_viewer.run_one_tick()
 

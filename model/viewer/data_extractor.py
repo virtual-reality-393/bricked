@@ -6,6 +6,7 @@ class FrameData:
     def __init__(self, file):
         self.frame_data = self._get_data_from_file(file)
         self.frame_count = len(self.frame_data)
+        self.time_length = self.get_data_with_identifier("TIME",self.frame_count-1)[1]
 
     def get_data_with_identifier(self,identifier,frame, forward = False):
         for i in range(frame,self.frame_count) if forward else range(frame,0,-1):
