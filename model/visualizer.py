@@ -1,8 +1,6 @@
-import time
 from viewer.data_viewer import *
 from viewer.geometry import *
 from viewer.data_extractor import FrameData
-from scipy.spatial.transform import Rotation as R
 
 frame_data = FrameData("game.log")
 name_to_color = {

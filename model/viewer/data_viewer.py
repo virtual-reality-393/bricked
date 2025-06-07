@@ -1,11 +1,7 @@
-from kombu import connections
-from sympy import false
-
 from viewer.geometry import *
 import open3d as o3d
 import open3d.visualization as vis
 import numpy as np
-from copy import deepcopy
 import time
 
 class DataViewer:
