@@ -12,20 +12,21 @@ name_to_color = {
     "yellow": (1, 1, 0, 1),
 }
 
-HAND_BONE_CONNECTIONS = [[0,1],
+RIGHT_HAND_BONE_CONNECTIONS = [[0,1],
                          [1,2],[2,3],[3,4],[4,5],[5,19],
                          [1,6],[6,7],[7,8],[8,20],
                          [1,9],[9,10],[10,11],[11,21],
                          [1,12],[12,13],[13,14],[14,22],
                          [1,15],[15,16],[16,17],[17,18],[18,23],
-                         [24, 25],
+                        ]
+LEFT_HAND_BONE_CONNECTIONS = [
+                        [24, 25],
                         [25, 26], [26, 27], [27, 28], [28, 29], [29, 43],
                         [25, 30], [30, 31], [31, 32], [32, 44],
                         [25, 33], [33, 34], [34, 35], [35, 45],
                         [25, 36], [36, 37], [37, 38], [38, 46],
                         [25, 39], [39, 40], [40, 41], [41, 42], [42, 47]
-                        ]
-
+]
 _,right_hand_data = frame_data.get_data_with_identifier("rightHand",0,True)
 _,left_hand_data = frame_data.get_data_with_identifier("leftHand",0,True)
 _,table_data = frame_data.get_data_with_identifier("tablePlane",0,True)
@@ -43,8 +44,8 @@ viewer.add_geometry(table_box)
 # table_box.set_rotation(R.from_quat(table_data["ROTATION"]).as_matrix())
 
 boxes = r_boxes + l_boxes
-r_lines = Lines()
-l_lines = Lines()
+r_lines = Lines("RIGHTHANDLINES")
+l_lines = Lines("LEFTHANDLINES")
 i = 0
 
 for box in r_boxes:
@@ -55,11 +56,16 @@ for box in l_boxes:
     viewer.add_geometry(box)
     box.set_position(left_hand_data[box.name[1:]])
 
-for x,y in HAND_BONE_CONNECTIONS:
-    lines.add_connection(boxes[x],boxes[y])
+for x,y in RIGHT_HAND_BONE_CONNECTIONS:
+    r_lines.add_connection(boxes[x],boxes[y])
 
-lines.update()
-viewer.add_connections(lines)
+for x,y in LEFT_HAND_BONE_CONNECTIONS:
+    l_lines.add_connection(boxes[x],boxes[y])
+
+l_lines.update()
+r_lines.update()
+viewer.add_connections(l_lines)
+viewer.add_connections(r_lines)
 i=0
 
 stacks = []

@@ -47,7 +47,6 @@ class TriangleGeometry(Geometry):
         self.geometry.compute_vertex_normals()
         self.org_mesh = deepcopy(geometry)
 
-
     def set_rotation(self,rotation):
         self.geometry = deepcopy(self.org_mesh)
         super().set_rotation(rotation)

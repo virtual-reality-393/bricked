@@ -10,7 +10,7 @@ class DataViewer:
     def __init__(self):
         self.app: vis.gui.Application = vis.gui.Application.instance
         self.app.initialize()
-        self.window: vis.gui.Window = self.app.create_window("test", 800, 450, 100, 100)
+        self.window: vis.gui.Window = self.app.create_window("test", 800, 400, 100, 100)
 
         self.horizontal = vis.gui.Horiz()
         self.horizontal.frame = vis.gui.Rect(600, 0, 200, 400)
@@ -30,13 +30,11 @@ class DataViewer:
         self.settings_view.enable_table.set_on_checked(
             lambda x: self.scene_view.show_geometry("TABLE") if x else self.scene_view.hide_geometry("TABLE"))
 
-        self.settings_view.enable_left_hand.set_on_checked(
-            lambda x: [self.scene_view.show_geometry(f"LBONE{i}") if x else self.scene_view.hide_geometry(f"LBONE{i}")
-            for i in range(24)])
+        self.settings_view.enable_left_hand.set_on_checked(lambda x: self.hide_hand(x,"LBONE"))
 
-        self.settings_view.enable_right_hand.set_on_checked(
-            lambda x: [self.scene_view.show_geometry(f"RBONE{i}") if x else self.scene_view.hide_geometry(f"RBONE{i}")
-            for i in range(24)])
+        self.settings_view.enable_right_hand.set_on_checked(lambda x: self.hide_hand(x,"RBONE"))
+
+        self.settings_view.enable_stacks.set_on_checked(lambda x: self.hide_stacks(x))
 
         self.video_bar = VideoBar()
         self.vert.add_child(self.video_bar.widget)
@@ -55,6 +53,16 @@ class DataViewer:
 
     def quit(self):
         self.app.quit()
+
+    def hide_hand(self,show,identifier):
+        [self.scene_view.show_geometry(f"{identifier}{i}") if show else self.scene_view.hide_geometry(f"{identifier}{i}") for i in range(24)]
+        side = "RIGHTHANDLINES" if identifier == "RBONE" else "LEFTHANDLINES"
+        self.scene_view.show_geometry(side) if show else self.scene_view.hide_geometry(side)
+
+    def hide_stacks(self,show):
+        for i in range(8):
+            for j in range(8):
+                self.scene_view.show_geometry(f"Stack{i}_{j}") if show else self.scene_view.hide_geometry(f"Stack{i}_{j}")
 
 
 
@@ -95,6 +103,7 @@ class SceneViewer:
         self.hidden_geometries.discard(name)
         if name in self.geometries:
             self.renderer.add_geometry(name,self.geometries[name].geometry,self.geometries[name].material)
+            self.geometries[name]._update_geometry()
 
 
     def remove_geometry(self, name):
@@ -118,9 +127,12 @@ class SceneViewer:
             self.first_run = False
 
         for connection in self.connections:
-            self.renderer.remove_geometry(connection.name)
-            connection.update()
-            self.renderer.add_geometry(connection.name, connection.line_set, connection.material)
+            if self.renderer.has_geometry(connection.name):
+                self.renderer.remove_geometry(connection.name)
+            if connection.name not in self.hidden_geometries:
+                connection.update()
+                self.renderer.add_geometry(connection.name, connection.line_set, connection.material)
+
 
 
 
@@ -129,6 +141,10 @@ class SceneViewer:
 class SettingsViewer:
     def __init__(self):
         self.widget = vis.gui.Vert()
+
+        self.label = vis.gui.Label("Settings")
+
+        self.widget.add_child(self.label)
 
         self.enable_table = vis.gui.Checkbox("Show Table")
         self.enable_table.checked = True
@@ -144,6 +160,11 @@ class SettingsViewer:
         self.enable_right_hand.checked = True
 
         self.widget.add_child(self.enable_right_hand)
+
+        self.enable_stacks = vis.gui.Checkbox("Show Stacks")
+        self.enable_stacks.checked = True
+
+        self.widget.add_child(self.enable_stacks)
 
 
 
