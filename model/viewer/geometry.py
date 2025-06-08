@@ -85,6 +85,9 @@ class Lines:
             [point.translation + point.geometry.get_center() for point in self.points])
 
         self.line_set.lines = o3d.utility.Vector2iVector(cons)
+        
+    def set_color(self,color):
+        self.material.base_color = color
 
     def update(self):
         self.construct()

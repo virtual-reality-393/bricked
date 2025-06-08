@@ -47,18 +47,22 @@ l_lines = Lines("LEFTHANDLINES")
 i = 0
 
 for box in r_boxes:
+    box.set_color((1,0,0,1))
     viewer.add_geometry(box)
     box.set_position(right_hand_data[box.name[1:]])
 
 for box in l_boxes:
+    box.set_color((0,0,1,1))
     viewer.add_geometry(box)
     box.set_position(left_hand_data[box.name[1:]])
 
 for x,y in RIGHT_HAND_BONE_CONNECTIONS:
     r_lines.add_connection(boxes[x],boxes[y])
+    # r_lines.set_color((1,0,0,1))
 
 for x,y in LEFT_HAND_BONE_CONNECTIONS:
     l_lines.add_connection(boxes[x],boxes[y])
+    # l_lines.set_color((0,0,1,1))
 
 l_lines.update()
 r_lines.update()

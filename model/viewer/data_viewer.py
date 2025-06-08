@@ -9,6 +9,7 @@ class DataViewer:
         self.app: vis.gui.Application = vis.gui.Application.instance
         self.app.initialize()
         self.window: vis.gui.Window = self.app.create_window("test", 800, 450, 100, 100)
+        
 
         self.horizontal = vis.gui.Horiz()
         self.horizontal.frame = vis.gui.Rect(600, 0, 200, 400)
@@ -36,6 +37,7 @@ class DataViewer:
 
         self.video_bar = VideoBar(total_time)
         self.vert.add_child(self.video_bar.widget)
+        self.scene_view.widget.set_on_key(lambda x: self.video_bar.toggle(x.type == 0 and not x.is_repeat))
 
         self.window.add_child(self.horizontal)
         self.window.add_child(self.vert)
@@ -189,7 +191,9 @@ class VideoBar:
 
     def pause(self,state):
         self.paused = state
-
+        self.prev_time = time.time()
+        return vis.gui.SceneWidget.EventCallbackResult.HANDLED
+    
     def set_time(self, value):
         self.pause(True)
         self.slider.int_value = int(value)
@@ -207,8 +211,11 @@ class VideoBar:
     def set_time_callback(self,callback):
         self.callback = callback
 
-    def toggle(self):
-        self.paused = not self.paused
+    def toggle(self,toggle):
+        if toggle:
+            self.paused = not self.paused
+            self.prev_time = time.time()
+        return vis.gui.SceneWidget.EventCallbackResult.HANDLED
 
     def get_time(self):
         return int(self.time_tracking)
