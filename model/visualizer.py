@@ -90,6 +90,8 @@ def run_timestep(time_value):
     if stack_datas is not None and newest_event != frame:
         newest_event = frame
         for stack_data in stack_datas:
+            if len(stack_data) == 0:
+                continue
             if stack_data["EVENT"] == "GENERATE":
                 if last_event_type == "GENERATE":
                     for stack in stacks:

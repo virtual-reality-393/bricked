@@ -110,7 +110,7 @@ class FrameData:
                         frame_data[frame_num][identifier] = []
 
                 if is_event:
-                    if len(frame_data[frame_num][identifier]) <= event_num:
+                    for i in range(event_num-len(frame_data[frame_num][identifier]) + 1):
                         frame_data[frame_num][identifier].append({})
                     frame_data[frame_num][identifier][event_num][name] = val
                 else:
