@@ -3,13 +3,15 @@ import open3d as o3d
 import open3d.visualization as vis
 import numpy as np
 import time
+import cv2
+from scipy.ndimage import gaussian_filter
 
 class DataViewer:
     def __init__(self,total_time):
         self.app: vis.gui.Application = vis.gui.Application.instance
         self.app.initialize()
-        self.window: vis.gui.Window = self.app.create_window("test", 800, 450, 100, 100)
-        
+        self.window: vis.gui.Window = self.app.create_window("Window", 800, 450, 0, 0)
+
 
         self.horizontal = vis.gui.Horiz()
         self.horizontal.frame = vis.gui.Rect(600, 0, 200, 400)
@@ -39,6 +41,8 @@ class DataViewer:
         self.vert.add_child(self.video_bar.widget)
         self.scene_view.widget.set_on_key(lambda x: self.video_bar.toggle(x.type == 0 and not x.is_repeat))
 
+        self.heatmap = HeatmapViewer()
+
         self.window.add_child(self.horizontal)
         self.window.add_child(self.vert)
 
@@ -46,6 +50,7 @@ class DataViewer:
         self.scene_view.run_one_tick()
         self.window.post_redraw()
         self.video_bar.update_time()
+        self.heatmap.run_one_tick()
         return self.app.run_one_tick()
 
     def get_time(self):
@@ -112,6 +117,7 @@ class SceneViewer:
         if name in self.geometries:
             self.renderer.add_geometry(name,self.geometries[name].geometry,self.geometries[name].material)
             self.geometries[name]._update_geometry()
+
 
 
     def remove_geometry(self, name):
@@ -220,3 +226,89 @@ class VideoBar:
     def get_time(self):
         return int(self.time_tracking)
 
+
+class HeatmapViewer:
+
+    def __init__(self):
+        self.scale_factor = None
+        self.rh_map = None
+        self.lh_map = None
+        self.size = None
+        self.display = False
+
+    def set_map_size(self,table_size,map_size,scale_factor):
+        self.scale_factor = scale_factor
+        self.size = np.ceil(np.array([table_size[1],table_size[0]]) * map_size/scale_factor)
+        self.size = self.size.astype(np.int32)
+
+    def make_heatmaps(self, lh_points, rh_points):
+        if self.size is None:
+            print("WARNING: Trying to draw empty heatmaps")
+            return
+
+        self.lh_map = np.ones(self.size)
+        self.rh_map = np.ones(self.size)
+
+        lh_points = np.array(lh_points)
+        rh_points = np.array(rh_points)
+
+        lh_points[:, 0] *= self.size[1]
+        lh_points[:, 1] *= self.size[0]
+
+        rh_points[:, 0] *= self.size[1]
+        rh_points[:, 1] *= self.size[0]
+        #
+        for point in lh_points:
+            if 0 < point[0] < self.size[1] and 0 < point[1] < self.size[0]:
+                self.lh_map[int(point[1])][int(point[0])] += 1
+
+        for point in rh_points:
+            if 0 < point[0] < self.size[1] and 0 < point[1] < self.size[0]:
+                self.rh_map[int(point[1])][int(point[0])] += 1
+
+        self.lh_map = np.sqrt(self.lh_map)
+        self.rh_map = np.sqrt(self.rh_map)
+
+        self.lh_map = gaussian_filter(self.lh_map, sigma=4)
+        self.rh_map = gaussian_filter(self.rh_map, sigma=4)
+
+        self.lh_map = (self.lh_map - self.lh_map.min())/(self.lh_map.max()-self.lh_map.min()+1e-8) * 255
+        self.rh_map = (self.rh_map - self.rh_map.min()) / (self.rh_map.max() - self.rh_map.min() + 1e-8) * 255
+
+        self.lh_map = cv2.resize(self.lh_map.astype(np.uint8),np.roll(self.size,1)*self.scale_factor)
+        self.rh_map = cv2.resize(self.rh_map.astype(np.uint8), np.roll(self.size, 1) * self.scale_factor)
+
+        self.lh_map = cv2.applyColorMap(self.lh_map,cv2.COLORMAP_JET)
+        self.rh_map = cv2.applyColorMap(self.rh_map, cv2.COLORMAP_JET)
+
+    def annotate_heatmaps(self,stacks,lh_points,rh_points):
+        lh_points = np.array(lh_points)
+        rh_points = np.array(rh_points)
+        stacks = np.array(stacks)
+
+        lh_points[:, 0] *= self.size[1] * self.scale_factor
+        lh_points[:, 1] *= self.size[0] * self.scale_factor
+
+        rh_points[:, 0] *= self.size[1] * self.scale_factor
+        rh_points[:, 1] *= self.size[0] * self.scale_factor
+        #
+        # stacks[:, 0] *= self.size[1] * self.scale_factor
+        # stacks[:, 1] *= self.size[0] * self.scale_factor
+        for point in lh_points:
+            if 0 < point[0] < self.size[1]*self.scale_factor and 0 < point[1] < self.size[0]*self.scale_factor:
+                cv2.circle(self.lh_map,(int(point[0]), int(point[1])),8,(0,0,255),-1)
+                cv2.circle(self.lh_map, (int(point[0]), int(point[1])), 8, (0, 0, 0), 1)
+
+        for point in rh_points:
+            if 0 < point[0] < self.size[1] * self.scale_factor and 0 < point[1] < self.size[0] * self.scale_factor:
+                cv2.circle(self.rh_map, (int(point[0]), int(point[1])), 8, (0, 0, 255), -1)
+                cv2.circle(self.rh_map, (int(point[0]), int(point[1])), 8, (0, 0, 0), 1)
+
+    def run_one_tick(self):
+        if self.lh_map is None:
+            print("WARNING: Trying to draw empty heatmaps")
+            return
+
+        cv2.imshow("Left Heatmap", self.lh_map)
+        cv2.imshow("Right Heatmap", self.rh_map)
+        cv2.waitKey(1)

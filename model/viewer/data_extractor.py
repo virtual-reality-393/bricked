@@ -4,6 +4,7 @@ import numpy as np
 
 class FrameData:
     def __init__(self, file):
+        self.first_frame = 0
         self.frame_data = self._get_data_from_file(file)
         self.frame_count = len(self.frame_data)
         self.time_length = self.get_data_with_identifier("TIME",self.frame_count-1)[1]
@@ -14,11 +15,19 @@ class FrameData:
                 return i, self.frame_data[i][identifier]
         return -1, None
 
+    def get_all_frames_with_identifier(self, identifier):
+        res = []
+        for i in range(0,self.frame_count):
+            if self.frame_data[i] is not None and identifier in self.frame_data[i]:
+                res.append(self.frame_data[i][identifier])
+
+        return res
+
     def get_closest_frame_to_timestamp(self,timestamp):
         for i in range(self.frame_count):
             if self.frame_data[i] is None: continue
             if self.frame_data[i]["TIME"] > timestamp:
-                return max(0,i-1)
+                return max(0, i - 1 - self.first_frame)
         return -1
 
     def _read_lines_from_file(self, input_file):
@@ -116,5 +125,11 @@ class FrameData:
                 else:
                     frame_data[frame_num][identifier][name] = val
 
-
+        for frame in frame_data[1:]:
+            if frame is not None:
+                print("meep")
+                print(frame)
+                self.first_frame = frame["FRAME_NUM"]
+                print(self.first_frame)
+                break
         return frame_data
