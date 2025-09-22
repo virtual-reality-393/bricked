@@ -128,7 +128,7 @@ def run_reconstruction_timestep(time_value):
 
 right_hand_points = [data["PALM"] for data in frame_data.get_all_frames_with_identifier("rightHand")]
 left_hand_points = [data["PALM"] for data in frame_data.get_all_frames_with_identifier("leftHand")]
-heatmap_viewer.set_map_size(table_data["PLANE"],800,4)
+heatmap_viewer.set_map_size(table_data["PLANE"],500,4)
 
 def run_heatmap_timestep(time_value):
     global frame_data, right_hand_points, left_hand_points
